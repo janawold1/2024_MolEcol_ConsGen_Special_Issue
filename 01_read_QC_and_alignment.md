@@ -93,7 +93,7 @@ for bam in ${dir}bam/*_merged.bam
     samtools sort -@16 -n -o ${dir}bam/${base}.nsorted.bam ${bam}
     samtools fixmate -@16 -r -m -c ${dir}bam/${base}.nsorted.bam ${dir}bam/${base}.fixmate.bam
     samtools sort -@16 -o ${dir}bam/${base}.fixmate.sorted.bam ${dir}bam/${base}.fixmate.bam
-    samtools markdup -@16 ${dir}bam/${base}.fixmate.sorted.bam ${dir}bam/${base}_nodup.bam
+    samtools markdup -r -@16 ${dir}bam/${base}.fixmate.sorted.bam ${dir}bam/${base}_nodup.bam
     samtools stats -@16 ${dir}bam/${base}_nodup.bam > ${dir}bam/${base}_nodup.stats
     qualimap bamqc -bam ${dir}bam/${base}_nodup.bam -nw 10000 -nt 32 -c -outdir ${dir}bam/${base}.graphmap --java-mem-size=8G
 done
