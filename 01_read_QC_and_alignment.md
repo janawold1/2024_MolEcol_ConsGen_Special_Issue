@@ -65,36 +65,51 @@ for lib in lib1 lib2 LIC001 LIC002
 
                 #Be explicit with file location for read 2 and the sam file output
                 echo "ALIGNING READS FOR $base LIBRARY: ${lib}..." 
-                time bwa mem -M -R @RG"\t"${rgid}"\t"${rgpl}"\t"${rgpu}"\t"${rglb}"\t"${rgsm} \
-                ${ref} ${samp} ${reads}${lib}/${base}_${lib}_R2.fq.gz | samtools view -b -@ 64 > ${out}bam/${base}_${lib}.bam
+                time bwa mem -M -R @RG"\t"${rgid}"\t"${rgpl}"\t"${rgpu}"\t"${rglb}"\t"${rgsm} -t 16 \
+                ${ref} ${samp} ${reads}${lib}/${base}_${lib}_R2.fq.gz | samtools sort -@ 64 -O BAM -o ${out}bam/${base}_${lib}.bam
                 echo "FINISHED ALIGNING READS FOR ${base} ${lib}...."
         done
 done
 ```
-Files were then sorted and merged.
+Files were then merged for each of the datasets, the reference sample is the only individual sequenced at two different facilites.  
+```samtools merge -@ 16 -o ${out}bam/SP01_merged.bam ${out}bam/SP01_lib1.bam ${out}bam/SP01_lib2.bam ${out}bam/SP01_LIC001.bam ${out}bam/SP01_LIC002.bam```
+ 
+ The `for` loop below was used to merge all other samples.  
 ```
-for lib in lib1 lib2 LIC001 LIC002
+for lib in lib2 LIC002
     do
     for bam in ${out}bam/*_${lib}.bam
         do
-        base=$(basename $bam .bam)
+        base=$(basename $bam _lib2.bam)
+        base=$(basename $base _LIC002.bam)
         echo "SORTING BAM for $base..."
-        samtools sort -o ${out}bam/${base}.sorted.bam ${bam}
+        samtools merge -@ 16 -o ${out}bam/${base}_merged.bam ${out}bam/${base}*.bam
     done
 done
 ```
-## Remove PCR duplicates and Initial alignment Stats
-All alignments to all three reference assemblies were sorted and PCR duplicates removed using `SAMtools`. Mean mapping quality and alignment depth was then estimated for comparisons between the three datasets.  
+
+All alignments to all three reference assemblies were sorted and PCR duplicates removed using `SAMtools`. Mean mapping quality and alignment depth was then estimated for comparisons between the three datasets and files converted to CRAM format to save disk space.  
 ```
 for bam in ${dir}bam/*_merged.bam
     do
     base=$(basename $bam _merged.bam)
     echo "Removing PCR duplicates from ${base}..."
     samtools sort -@16 -n -o ${dir}bam/${base}.nsorted.bam ${bam}
-    samtools fixmate -@16 -r -m -c ${dir}bam/${base}.nsorted.bam ${dir}bam/${base}.fixmate.bam
+    samtools fixmate -@16 -m -c ${dir}bam/${base}.nsorted.bam ${dir}bam/${base}.fixmate.bam
     samtools sort -@16 -o ${dir}bam/${base}.fixmate.sorted.bam ${dir}bam/${base}.fixmate.bam
     samtools markdup -r -@16 ${dir}bam/${base}.fixmate.sorted.bam ${dir}bam/${base}_nodup.bam
-    samtools stats -@16 ${dir}bam/${base}_nodup.bam > ${dir}bam/${base}_nodup.stats
     qualimap bamqc -bam ${dir}bam/${base}_nodup.bam -nw 10000 -nt 32 -c -outdir ${dir}bam/${base}.graphmap --java-mem-size=8G
+done
+```
+Once BAMs were processed, files were converted to CRAM format and autosomal chromosomes were extracted for population analyses.  
+```
+cut -f1,2 TI_as_CT.fasta.gz.fai | grep "CM020" | grep -v CM020462.1_RagTags | grep -v CM020463.1_RagTags | awk '{print $1"\t1\t"$2} > TI_as_CT_autosomes.txt
+cut -f1,2 common_tern.fasta.gz.fai grep "CM020" | grep -v CM020462.1 | grep -v CM020463.1 | awk '{print $1"\t1\t"$2} > common_tern_autosomes.txt
+
+for samp in ${dir}nodup_bam/*_nodup.bam
+    do
+    base=$(basename $samp _nodup.bam)
+    samtools view -@ 16 -O CRAM -o ${dir}cram/${base}_nodup.cram ${samp}
+    samtools view -L reference/TI_as_CT_autosomes.bed -O CRAM -o ${dir}cram/${base}_nodup_autosomes.cram ${dir}cram/${base}_nodup.cram
 done
 ```

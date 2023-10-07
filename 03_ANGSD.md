@@ -6,10 +6,10 @@ Before progressing with analyses, an initial look at the distribution of quality
 for ref in a b c 
     do
     base=$(basename $ref .fasta)
-    angsd -P 8 -b GLOBAL.list -ref $ref -out ${base}/GLOBAL.qc \
+    angsd -P 16 -b GLOBAL.list -ref $ref -out ${base}/GLOBAL.qc \
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 \
-        -trim 0 -C 50 -baq 1 -minMapQ 15 -doQsdist 1 -doDepth 1 \
-        -doCounts 1 -maxDepth 2200
+        -trim 0 -C 50 -baq 1 -minMapQ 20 -doQsdist 1 -doDepth 1 \
+        -doCounts 1 -maxDepth 1000
 done
 ```
 Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md), the distributions of these sites were visualised with `Rscript plotQC.R GLOBAL.qc` and meaningful filtering thresholds were identified. For all subsequent analyses, a minimum mapping quality of XXX, minimum base quality of XXX, minimum depth of XXX, and a maximum depth of XXX are implemented. Depending on the analysis, a missingness threshold of 0% or 10% was used.  
@@ -17,13 +17,13 @@ Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blo
 ## Population Structure
 0% & 10% missiness. PCA. 
 Considering high inbreeding for tara iti
-## Genetic Differentiation
+## Global Genetic Differentiation and Diversity
 The `global` data set aligned to all three genomes was used to estimate genetic distance.  
 ```
 for ref in a b c
     do
     base=$(basename $ref .fasta)
-    angsd -P 8 -b GLOBAL.list -ref $ref -out ${base}/GLOBAL \
+    angsd -P 16 -b GLOBAL.list -ref $ref -out ${base}/GLOBAL \
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 \
         -trim 0 -C 50 -baq 1 -minMapQ 15 -minQ 20 -minInd 22 \
         -setMinDepth 144 -setMaxDepth 1694 -skipTriallelic 1 \
