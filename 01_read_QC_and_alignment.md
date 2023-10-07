@@ -82,13 +82,13 @@ for lib in lib2 LIC002
         do
         base=$(basename $bam _lib2.bam)
         base=$(basename $base _LIC002.bam)
-        echo "SORTING BAM for $base..."
+        echo "MERGING BAMS FOR $base..."
         samtools merge -@ 16 -o ${out}bam/${base}_merged.bam ${out}bam/${base}*.bam
     done
 done
 ```
 
-All alignments to all three reference assemblies were sorted and PCR duplicates removed using `SAMtools`. Mean mapping quality and alignment depth was then estimated for comparisons between the three datasets and files converted to CRAM format to save disk space.  
+All alignments to all three reference assemblies were sorted and PCR duplicates removed using `SAMtools`.   
 ```
 for bam in ${dir}bam/*_merged.bam
     do
@@ -101,7 +101,7 @@ for bam in ${dir}bam/*_merged.bam
     qualimap bamqc -bam ${dir}bam/${base}_nodup.bam -nw 10000 -nt 32 -c -outdir ${dir}bam/${base}.graphmap --java-mem-size=8G
 done
 ```
-Once BAMs were processed, files were converted to CRAM format and autosomal chromosomes were extracted for population analyses.  
+Once BAMs were processed, files were converted to CRAM format and autosomal chromosomes were extracted for population analyses. Mean mapping quality and alignment depth was then estimated for comparisons between the three datasets and files converted to CRAM format to save disk space.  
 ```
 cut -f1,2 TI_as_CT.fasta.gz.fai | grep "CM020" | grep -v CM020462.1_RagTags | grep -v CM020463.1_RagTags | awk '{print $1"\t1\t"$2} > TI_as_CT_autosomes.txt
 cut -f1,2 common_tern.fasta.gz.fai grep "CM020" | grep -v CM020462.1 | grep -v CM020463.1 | awk '{print $1"\t1\t"$2} > common_tern_autosomes.txt
@@ -109,7 +109,13 @@ cut -f1,2 common_tern.fasta.gz.fai grep "CM020" | grep -v CM020462.1 | grep -v C
 for samp in ${dir}nodup_bam/*_nodup.bam
     do
     base=$(basename $samp _nodup.bam)
+    echo "CONVERTING ${base} FROM BAM TO CRAM..."
     samtools view -@ 16 -O CRAM -o ${dir}cram/${base}_nodup.cram ${samp}
+    echo "EXTRACTING AUTOSOMES FOR ${base}..."
     samtools view -L reference/TI_as_CT_autosomes.bed -O CRAM -o ${dir}cram/${base}_nodup_autosomes.cram ${dir}cram/${base}_nodup.cram
+    echo "INDEXING FILES FOR ${base}..."
+    samtools index -@ 16 ${dir}cram/${base}_nodup.cram
+    samtools index -@ 16 ${dir}cram/${base}_nodup_autosomes.cram
+    echo "FINISHED CONVERTING AND INDEXING FILES FOR ${base}..."
 done
 ```
