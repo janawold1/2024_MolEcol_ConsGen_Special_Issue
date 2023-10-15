@@ -93,12 +93,12 @@ All alignments to all three reference assemblies were sorted and PCR duplicates 
 for bam in ${dir}bam/*_merged.bam
     do
     base=$(basename $bam _merged.bam)
-    echo "Removing PCR duplicates from ${base}..."
-    samtools sort -@16 -n -o ${dir}bam/${base}.nsorted.bam ${bam}
-    samtools fixmate -@16 -m -c ${dir}bam/${base}.nsorted.bam ${dir}bam/${base}.fixmate.bam
+    echo "NSORTING AND FIXING MATE PAIRS FOR ${base}..."
+    samtools sort -@16 -n ${bam} | samtools fixmate -@16 -m -c - ${dir}bam/${base}.fixmate.bam
     samtools sort -@16 -o ${dir}bam/${base}.fixmate.sorted.bam ${dir}bam/${base}.fixmate.bam
-    samtools markdup -r -@16 ${dir}bam/${base}.fixmate.sorted.bam ${dir}bam/${base}_nodup.bam
-    qualimap bamqc -bam ${dir}bam/${base}_nodup.bam -nw 10000 -nt 32 -c -outdir ${dir}bam/${base}.graphmap --java-mem-size=8G
+    echo "MARKING PCR DUPLICATES FOR ${base}..."
+    samtools markdup -O CRAM -@16 --reference ${ref} --write-index \
+        ${dir}bam/${base}.fixmate.sorted.bam ${dir}cram/${base}_nodup.cram
 done
 ```
 Once BAMs were processed, files were converted to CRAM format and autosomal chromosomes were extracted for population analyses. Mean mapping quality and alignment depth was then estimated for comparisons between the three datasets and files converted to CRAM format to save disk space.  
@@ -109,13 +109,12 @@ cut -f1,2 common_tern.fasta.gz.fai grep "CM020" | grep -v CM020462.1 | grep -v C
 for samp in ${dir}nodup_bam/*_nodup.bam
     do
     base=$(basename $samp _nodup.bam)
-    echo "CONVERTING ${base} FROM BAM TO CRAM..."
-    samtools view -@ 16 -O CRAM -o ${dir}cram/${base}_nodup.cram ${samp}
     echo "EXTRACTING AUTOSOMES FOR ${base}..."
-    samtools view -L reference/TI_as_CT_autosomes.bed -O CRAM -o ${dir}cram/${base}_nodup_autosomes.cram ${dir}cram/${base}_nodup.cram
-    echo "INDEXING FILES FOR ${base}..."
-    samtools index -@ 16 ${dir}cram/${base}_nodup.cram
-    samtools index -@ 16 ${dir}cram/${base}_nodup_autosomes.cram
-    echo "FINISHED CONVERTING AND INDEXING FILES FOR ${base}..."
+    samtools view -@16 -L reference/TI_as_CT_autosomes.bed -T ${ref} -O CRAM \
+        --write-index -o ${dir}cram/${base}_nodup_autosomes.cram ${dir}cram/${base}_nodup.cram
+    echo "FINISHED CONVERTING AND INDEXING FILES FOR ${base}, NOW ESTIMATING STATS..."
+    samtools stats -@ 16 ${dir}cram/${base}_nodup.cram > ${dir}align_stats/${base}_nodup.stats
+    samtools stats -@ 16 ${dir}cram/${base}_nodup_autosomes.cram > ${dir}align_stats/${base}_nodup_autosomes.stats
+    echo "FINISHED PROCESSING ${base}!"
 done
 ```
