@@ -22,12 +22,10 @@ Considering high inbreeding for tara iti
 ## Global Genetic Differentiation and Diversity
 The `global` data set aligned to all three genomes was used to estimate genetic distance.  
 ```
-angsd -P 16 -b GLOBAL.list -ref $ref -out ${base}/GLOBAL \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 \
-    -trim 0 -C 50 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
-    -setMinDepth 300 -setMaxDepth 630 -skipTriallelic 1 \
-    -SNP_pval 1e-3 -GL 1 -doCounts 1 -doMajorMinor 1 \
-    -doMaf 1 -doGeno 8 -doPost 1
+angsd -P 16 -b GLOBAL.list -ref $ref -out ${base}/GLOBAL -uniqueOnly 1 -remove_bads 1 \
+    -only_proper_pairs 1 -trim 0 -C 50 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
+    -setMinDepth 300 -setMaxDepth 630 -skipTriallelic 1 -SNP_pval 1e-3 -GL 1 \
+    -doCounts 1 -doMajorMinor 1 -doMaf 1 -doGeno 8 -doPost 1
 ```
 This generates the required `*.mafs.gz` and `*.geno.gz` files for estimating genetic distance with [ngsDistvX.X](github.com/mfumagalli/ngsTools). A `pops.label` file denoting the population of origin (one entry on a new line for each samples) is necessary for estimating genetic distance.  
 ```
