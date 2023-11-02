@@ -3,7 +3,7 @@
 
 Before progressing with analyses, an initial look at the distribution of quality scores and per-site depth on a global and individual-based basis. This was repeated alignments to all three reference geomes (Common tern, Tara iti scaffolded using common tern, and the unscaffolded tara iti reference). Sex chromosomes were excluded for alignments to the scaffolded assemblies (i.e., common tern, tara iti scaffolded using common tern). All analyses were performed under the SAMtools genotype likelihood model `-GL 1` unless otherwise denoted.  
 ```
-angsd -P 16 -b GLOBAL.list -ref $ref -out ${dir}angsd_${base}/GLOBAL.qc \
+angsd -P 8 -b GLOBAL.list -ref $ref -out qc/GLOBAL.qc \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 \
     -trim 0 -C 50 -baq 1 -minMapQ 15 -doQsdist 1 -doDepth 1 \
     -doCounts 1 -maxDepth 1000
@@ -53,9 +53,12 @@ bedtools complement -i reference/GCA_009819605.1/genes/all_autosomal_annotations
     -g reference/TI_scaffolded_as_CT_bedtools_genome.txt | grep -v sf | grep -v WNM | \
     grep -v CM020500 | grep -v CM020463 | grep -v CM020462 > angsd_scaffolded/TI_scaffolded_neutral_regions.bed
 ```
-This left 23,113 regions covering 724,015,594 bp for analyses. This corresponds to roughly 60% of the genome. 
+No regions within 1kb of the start/end of the chromosome were retained. This left 22,167 regions covering 615,256,912 bp for analyses. This corresponds to roughly 52% of the genome. This file was then indexed for use with the `angsd -sites` option.  
+```
+angsd sites index TI_scaffolded_neutral_regions.bed
+```
 
-We also extracted the autosomoal chromosomes from the common tern assembly, and renamed them with the same names in the tara iti reference assembly. This was so we could polarize the site frequency spectrum with common tern as the ancestral state. 
+We also extracted the autosomoal chromosomes from the common tern assembly, and renamed them with the same names in the tara iti reference assembly. This was so we could polarize the site frequency spectrum with common tern as the ancestral state.  
 ```
 faSomeRecords common_tern.fa common_tern_autosomes.bed common_tern_autosomes.fasta
 
@@ -81,22 +84,22 @@ samtools faidx common_tern_subset.fasta.gz
 ## Inbreeding Estimates
 To estimate relative levels of inbreeding and account for the high liklihood that tara iti do not conform to Hardy-Weinberg Equilibrium (HWE), we first generated population specific genotype likelihoods for input into [ngsF](https://github.com/mfumagalli/ngsTools) v1.2.0-STD. The outputs of these analyses can also be used as a prior for populations that are not in hardy-weinburg equilibrium (HWE).  
 ```
-angsd -P 8 -b AU.list -ref $ref -out inbreeding/AU -rf ${region} \
+angsd -P 8 -b AU.list -ref $ref -out inbreeding/AU -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 350 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 
-angsd -P 8 -b TI.list -ref $ref -out inbreeding/TI -rf ${region} \
+angsd -P 8 -b TI.list -ref $ref -out inbreeding/TI -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 
-angsd -P 8 -b GLOBAL.list -ref $ref -out inbreeding/GLOBAL -rf ${region} \
+angsd -P 8 -b GLOBAL.list -ref $ref -out inbreeding/GLOBAL -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 ```
-This left 3,510,734 sites in the `AU` dataset, 1,089,050 sites in the `TI` dataset, and 6,015,922 sites in the `GLOBAL` dataset upon the completion of ANGSD. Next, `ngsF` was used to estimate inbreeding. First, an initial search was performed. The below was perfomed for each of the `AU`, `TI`, and `GLOBAL` data sets.  
+This left 980,578 sites in the `AU` dataset, 297,787 sites in the `TI` dataset, and 1,665,527 sites in the `GLOBAL` dataset upon the completion of ANGSD. Next, `ngsF` was used to estimate inbreeding. First, an initial search was performed. The below was perfomed for each of the `AU`, `TI`, and `GLOBAL` data sets upon the completion of ANGSD.  
 ```
 zcat inbreeding/AU.glf.gz > inbreeding/AU.glf
 
@@ -115,14 +118,9 @@ We also estimated per-individual inbreeding with [ngsF-HMM](https://github.com/m
 
 ```
 ## Population Structure
-0% & 10% missiness. PCA.  
+0% missiness. PCA.  
 ```
-angsd -P 8 -b GLOBAL.bamlist -ref $ref -out structure/GLOBAL_noMiss -rf ${region} \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 32 -doPost 1
-
-angsd -P 8 -b GLOBAL.bamlist -ref $ref -out structure/GLOBAL_0.1miss -rf ${region} \
+angsd -P 8 -b GLOBAL.bamlist -ref $ref -out structure/GLOBAL_noMiss -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 32 -doPost 1
@@ -130,50 +128,45 @@ angsd -P 8 -b GLOBAL.bamlist -ref $ref -out structure/GLOBAL_0.1miss -rf ${regio
 Running [ngsCovar](https://github.com/mfumagalli/ngsPopGen) for the data set with no missingnes and 10% missingness.  
 ```
 gunzip structure/GLOBAL_noMiss.geno.gz
-gunzip structure/GLOBAL_0.1miss.geno.gz
 
 NSITES=$(zcat structure/GLOBAL_noMiss.mafs.gz | tail -n+2 | wc -l)
 ngsCovar -probfile structure/GLOBAL_noMiss.geno \
     -outfile structure/GLOBAL_noMiss.covar -nind 38 -nsites $NSITES -call 0 -norm 0
 
-NSITES=$(zcat structure/GLOBAL_0.1miss.mafs.gz | tail -n+2 | wc -l)
-ngsCovar -probfile structure/GLOBAL_0.1miss.geno \
-    -outfile structure/GLOBAL_0.1miss.covar -nind 38 -nsites $NSITES -call 0 -norm 0
-
 Rscript -e 'write.table(cbind(seq(1,38),rep(1,38),c(rep("AU",19),rep("TI",19))), row.names=F, sep="\t", col.names=c("FID","IID","CLUSTER"), file="structure/GLOBAL_noMiss.clst", quote=F)'
 Rscript plotPCA.R -i structure/GLOBAL_noMiss.covar -c 1-2 -a structure/GLOBAL_noMiss.clst -o structure/GLOBAL_noMiss.pca.pdf
-
-Rscript -e 'write.table(cbind(seq(1,38),rep(1,38),c(rep("AU",19),rep("TI",19))), row.names=F, sep="\t", col.names=c("FID","IID","CLUSTER"), file="structure/GLOBAL_0.1miss.clst", quote=F)'
-Rscript plotPCA.R -i structure/GLOBAL_0.1miss.covar -c 1-2 -a structure/GLOBAL_0.1miss.clst -o structure/GLOBAL_0.1miss.pca.pdf
 ```
-
-### Population Structure with Inbreeding
-Considering high inbreeding for tara iti
-### Global Genetic Differentiation
-Only the `GLOBAL` data set was used to estimate genetic distance.  
+### Population structure with MDS
+To construct a MDS for fairy tern populations, we first ran ANGSD as below.  
 ```
-angsd -P 8 -b AU.list -ref $ref -out distance/AU -rf ${region} \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 350 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 8 -doPost 1
-
-angsd -P 8 -b TI.list -ref $ref -out distance/TI -rf ${region} \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 8 -doPost 1
-
-angsd -P 8 -b GLOBAL.list -ref $ref -out distance/GLOBAL -rf ${region} \
+angsd -P 8 -b GLOBAL.list -ref $ref -out distance/GLOBAL -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 8 -doPost 1
 ```
-As with the inbreeding calculations above, this command not only generates the required `*.mafs.gz`, but also the `*.geno.gz` encoded as posterior probabilities of all possible genotypes required for estimating genetic distance with [ngsDistv1.0.10](github.com/mfumagalli/ngsTools). A `pops.label` file denoting the population of origin (one entry on a new line for each samples) is necessary for estimating genetic distance.  
+This command not only generates the required `*.mafs.gz`, but also the `*.geno.gz`, which contains posterior probabilities of all possible genotypes required for estimating genetic distance with [ngsDistv1.0.10](github.com/mfumagalli/ngsTools). In addition, a `pops.label` file denoting the population of origin (one entry on a new line for each samples) is necessary for estimating genetic distance.  
 ```
 NSITES=$(zcat GLOBAL.mafs.gz | tail -n +2 | wc -l)
 echo $NSITES
 
-ngsDist -verbose 1 -geno GLOBAL.geno.gz -probs -n_ind 38 -n_sites $NSITES -labels pops.label -o distance/GLOBAL.dist
+ngsDist -verbose 1 -geno distance/GLOBAL.geno.gz -probs \
+    -n_ind 38 -n_sites $NSITES -labels pops.label -o distance/GLOBAL.dist
 ```
+Extract and construct MDS.  
+```
+tail -n +3 distance/GLOBAL.dist | Rscript --vanilla --slave getMDS.R \
+    --no_header --data_symm -n 4 -m "mds" -o distance/GLOBAL.mds
+
+head distance/GLOBAL.mds
+```
+And finally plot the MDS.  
+```
+Rscript plotMDS.R -i distance/GLOBAL.mds -c 1-2 -a structure/GLOBAL_noMiss.clst -o distance/GLOBAL_mds.pdf
+```
+
+### Population Structure with Inbreeding
+Considering high inbreeding for tara iti
+
 ## Site Frequency Spectrum
 The intermediate site frequency spectrum estimated in the example above were used to generate SFS files with realSFS. Here, we are using the common tern as the ancestral state.  
 ```
@@ -181,24 +174,36 @@ anc=reference/common_tern_autosomes.fasta.gz
 region=TI_scaffolded_neutral_regions.bed
 for POP in AU TI
     do
-    angsd -P 8 -b ${POP}.list -ref $ref -anc $ref -out sfs/${POP}_fold -rf ${region} \
+    angsd -P 8 -b ${POP}.list -ref $ref -anc $ref -out sfs/${POP}_fold -sites ${region} \
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
         -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
         -GL 1 -doSaf 1
-        angsd -P 8 -b ${POP}.list -ref $ref -anc $anc -out sfs/${POP}_unfold -rf ${region} \
+    angsd -P 8 -b ${POP}.list -ref $ref -anc $anc -out sfs/${POP}_unfold -sites ${region} \
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
         -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
         -GL 1 -doSaf 1
 done
 
-angsd -P 8 -b GLOBAL.list -ref $ref -anc $anc -out sfs/GLOBAL -rf ${region} \
+angsd -P 8 -b GLOBAL.list -ref $ref -anc $anc -out sfs/GLOBAL -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doSaf 1
 ```
 
 ```
-realSFS sfs/AU.saf.idx > sfs/AU.sfs
-realSFS sfs/TI.saf.idx > sfs/TI.sfs
-realSFS sfs/AU.saf.idx sfs/TI.saf.idx > sfs/AU_TI.sfs
+realSFS -fold 1 sfs/AU_fold.saf.idx > sfs/AU_fold.sfs
+realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/AU_fold.saf.idx > sfs/AU_fold_realSFS_folded_100boots.sfs
+
+realSFS -fold 1 sfs/TI_fold.saf.idx > sfs/TI_fold.sfs
+realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/TI_fold.saf.idx > sfs/TI_fold_realSFS_folded_100boots.sfs
+
+realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/AU_fold.saf.idx sfs/TI_fold.saf.idx > sfs/AU_TI_fold_realSFS_folded_100boots.sfs
+```
+## Nucleotide Diversity 
+
+```
+angsd -P 8 -b $POP.bamlist -ref ${ref} -anc ${ref} -out diversity/$POP_fold -sites ${region} \
+    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+    -minMapQ 20 -minQ 20 -minInd 10 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
+    -GL 1 -doSaf 1 -doThetas 1 -pest sfs/$POP.sfs
 ```

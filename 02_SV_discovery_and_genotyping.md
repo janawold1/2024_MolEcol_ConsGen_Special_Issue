@@ -30,12 +30,12 @@ bcftools view -i 'FILTER=="PASS" & INFO/PRECISE==1 & SVTYPE!="BND"' \
 ```
 These final SVs were used as input into the VG graph outlined below.  
 ## Manta Discovery
-[Manta](https://github.com/Illumina/manta) v1.6.0 was used to call SVs for Australian fairy tern and tara iti as per below. Three samples had to be excluded for Manta to run, AU13, TI06, TI34 & TI35. Running Manta is relatively simple, with the initial configuration setup as per:
+[Manta](https://github.com/Illumina/manta) v1.6.0 was used to call SVs for Australian fairy tern and tara iti. Three samples had to be excluded for Manta to run, AU13, TI06, TI34 & TI35. The errors indicated issues with the proportion of reads and read depth statistics. Each chromosome was called independently with the `--callRegions` flag to save computational resource and increase efficiency. Running Manta is relatively simple, with the initial configuration setup as per:
 ```
 ref=/media/jana/BigData/tara_iti_publication/reference/TI_scaffolded_as_CT.fasta.gz
 out=/media/jana/BigData/tara_iti_publication/manta/
 
-configManta.py --referenceFasta ${ref} --runDir ${out} \
+configManta.py --referenceFasta ${ref} --runDir ${out} --callRegions ${chr} \
 --bam AU01_nodup_autosomes.cram --bam AU03_nodup_autosomes.cram --bam AU04_nodup_autosomes.cram \
 --bam AU06_nodup_autosomes.cram --bam AU08_nodup_autosomes.cram --bam AU09_nodup_autosomes.cram \
 --bam AU14_nodup_autosomes.cram --bam AU17_nodup_autosomes.cram --bam AU20_nodup_autosomes.cram \
@@ -49,9 +49,12 @@ configManta.py --referenceFasta ${ref} --runDir ${out} \
 --bam TI37_nodup_autosomes.cram --bam TI38_nodup_autosomes.cram --bam TI39_nodup_autosomes.cram \
 --bam TI40_nodup_autosomes.cram --bam TI41_nodup_autosomes.cram
 ``` 
-And Manta executed on the resulting `runWorkflow.py` file in the designated output directory.  
+And Manta executed on the resulting `runWorkflow.py` file in the designated output directories.  
 
 ### Manta Filtering
+Filtering of raw Manta calls was relatively simple. First, Inversion calls were converted from Breakends using the `convertInversions.py` script supplied by Manta. Then all reads had to pass all 'hard' filtering thresholds and have 'precise' breakpoints.  
+
+Files for individual chromsomes were then concatenated into a single file with `bcftools`.  
 
 ## Cue Discovery
 [Cue](https://github.com/PopicLab/cue#install) vX.X has to be installed using Python3.7. To ensure dependencies installed correctly a conda environment, as will all other programmes, was used. The python version was denoted as per: `conda create -n cue python=3.7`. Then Cue was installed within this environment following the instructions on the the GitHub page.  
