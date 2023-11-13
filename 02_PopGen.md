@@ -82,6 +82,7 @@ bgzip common_tern_subset.fasta
 samtools faidx common_tern_subset.fasta.gz
 ```
 ## Inbreeding Estimates
+### F statistics
 To estimate relative levels of inbreeding and account for the high liklihood that tara iti do not conform to Hardy-Weinberg Equilibrium (HWE), we first generated population specific genotype likelihoods for input into [ngsF](https://github.com/mfumagalli/ngsTools) v1.2.0-STD. The outputs of these analyses can also be used as a prior for populations that are not in hardy-weinburg equilibrium (HWE).  
 ```
 angsd -P 8 -b AU.list -ref $ref -out inbreeding/AU -sites ${region} \
@@ -117,29 +118,70 @@ We also estimated per-individual inbreeding with [ngsF-HMM](https://github.com/m
 ```
 
 ```
-## Population Structure
-0% missiness. PCA.  
+### Relatedness
+We estimated relatedness among individuals with [ngsRelate](https://github.com/ANGSD/NgsRelate).  
 ```
-angsd -P 8 -b GLOBAL.bamlist -ref $ref -out structure/GLOBAL_noMiss -sites ${region} \
+for POP in AU TI
+    do
+    zcat inbreeding/${POP}.mafs.gz | cut -f 6 | sed 1d > inbreeding/${POP}_freqs
+    NSITES=$(zcat inbreeding ${POP}.mafs.gz | tail -n +2 | wc -l)
+    ngsRelate -g inbreeding/${POP}.glf -n 19 -f inbreeding/${POP}_freqs -O inbreeding/${POP}_relatedness
+done
+```
+
+### Runs of Homozygosity
+Two methods were used to estimate runs of homozygosity, [ROHAN](https://github.com/grenaud/rohan) and an approach using ANGSD.  
+
+For ROHAN, all PCR-duplicates were removed as recommended. 
+```
+samtools markdup -@16 -r --write-index *_nodup_autosomes.cram *_rohan.bam
+```
+And the programme was run on for each individual.
+```
+for bam in *_rohan.bam
+    do
+    base=$(basename $bam _rohan.bam)
+    echo "RUNNING ROHAN FOR ${base}"
+    rohan --size 50000 --rohmu 4.6e-9 -t 16 --tstv 2.36 -o output/${base} $ref $bam
+done
+```
+### Global Heterozygosity
+Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Essentially, this estimate is a proportion of heterozygous genotypes / genome size (excluding regions of the genome with low confidence). Unlike other runs of ANGSD, individual CRAMs are used to estimate hetereozygosity, which is simply second value in the SFS/AFS.  
+```
+for cram in ${dir}*_nodup_autosomes.cram
+    do
+    base=$(basename $cram _nodup_autosomes.cram)
+    angsd -i $cram -anc $ref -out heterozygosity/${base} -dosaf 1 -GL 1 -doCounts 1
+    realSFS -fold 1 heterozygosity/${base}.saf.idx > heterozygosity/${base}_est.ml
+done
+```
+
+## Population Structure
+### PCA
+To visualise population structure using a PCA, we first ran ANGSD using the `-doGeno 32` and `-doPost 1` options.  
+```
+angsd -P 8 -b GLOBAL.bamlist -ref $ref -out structure_PCA/GLOBAL_noMiss -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 32 -doPost 1
 ```
-Running [ngsCovar](https://github.com/mfumagalli/ngsPopGen) for the data set with no missingnes and 10% missingness.  
+Then, [ngsCovar](https://github.com/mfumagalli/ngsPopGen) was run to estimate covariance.  
 ```
-gunzip structure/GLOBAL_noMiss.geno.gz
+gunzip structure_PCA/GLOBAL_noMiss.geno.gz
 
-NSITES=$(zcat structure/GLOBAL_noMiss.mafs.gz | tail -n+2 | wc -l)
-ngsCovar -probfile structure/GLOBAL_noMiss.geno \
-    -outfile structure/GLOBAL_noMiss.covar -nind 38 -nsites $NSITES -call 0 -norm 0
-
-Rscript -e 'write.table(cbind(seq(1,38),rep(1,38),c(rep("AU",19),rep("TI",19))), row.names=F, sep="\t", col.names=c("FID","IID","CLUSTER"), file="structure/GLOBAL_noMiss.clst", quote=F)'
-Rscript plotPCA.R -i structure/GLOBAL_noMiss.covar -c 1-2 -a structure/GLOBAL_noMiss.clst -o structure/GLOBAL_noMiss.pca.pdf
+NSITES=$(zcat structure_PCA/GLOBAL_noMiss.mafs.gz | tail -n+2 | wc -l)
+ngsCovar -probfile structure_PCA/GLOBAL_noMiss.geno \
+    -outfile structure_PCA/GLOBAL_noMiss.covar -nind 38 -nsites $NSITES -call 0 -norm 0
 ```
-### Population structure with MDS
-To construct a MDS for fairy tern populations, we first ran ANGSD as below.  
+Before plotting with the Rscripts supplied by ngsTools.  
 ```
-angsd -P 8 -b GLOBAL.list -ref $ref -out distance/GLOBAL -sites ${region} \
+Rscript -e 'write.table(cbind(seq(1,38),rep(1,38),c(rep("AU",19),rep("TI",19))), row.names=F, sep="\t", col.names=c("FID","IID","CLUSTER"), file="structure_PCA/GLOBAL_noMiss.clst", quote=F)'
+Rscript plotPCA.R -i structure_PCA/GLOBAL_noMiss.covar -c 1-2 -a structure_PCA/GLOBAL_noMiss.clst -o structure_PCA/GLOBAL_noMiss.pca.pdf
+```
+### MDS
+To construct a MDS for fairy tern populations, we first ran ANGSD as below. Notably, the only change is the `-doGeno 8` flag.  
+```
+angsd -P 8 -b GLOBAL.list -ref $ref -out structure_MDS/GLOBAL -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 8 -doPost 1
@@ -163,11 +205,11 @@ And finally plot the MDS.
 ```
 Rscript plotMDS.R -i distance/GLOBAL.mds -c 1-2 -a structure/GLOBAL_noMiss.clst -o distance/GLOBAL_mds.pdf
 ```
-
 ### Population Structure with Inbreeding
-Considering high inbreeding for tara iti
+Initial inbreeding estimates for tara iti indicate that the population is likely out of hardy-weinburg equilibrium (HWE). To account for this, relative inbreeding levels were incorporated into assessments of population structure.  
 
-## Site Frequency Spectrum
+## Summary Statistics
+### Site Frequency Spectrum
 The intermediate site frequency spectrum estimated in the example above were used to generate SFS files with realSFS. Here, we are using the common tern as the ancestral state.  
 ```
 anc=reference/common_tern_autosomes.fasta.gz
@@ -175,10 +217,6 @@ region=TI_scaffolded_neutral_regions.bed
 for POP in AU TI
     do
     angsd -P 8 -b ${POP}.list -ref $ref -anc $ref -out sfs/${POP}_fold -sites ${region} \
-        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-        -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
-        -GL 1 -doSaf 1
-    angsd -P 8 -b ${POP}.list -ref $ref -anc $anc -out sfs/${POP}_unfold -sites ${region} \
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
         -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
         -GL 1 -doSaf 1
@@ -191,19 +229,63 @@ angsd -P 8 -b GLOBAL.list -ref $ref -anc $anc -out sfs/GLOBAL -sites ${region} \
 ```
 
 ```
-realSFS -fold 1 sfs/AU_fold.saf.idx > sfs/AU_fold.sfs
 realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/AU_fold.saf.idx > sfs/AU_fold_realSFS_folded_100boots.sfs
 
-realSFS -fold 1 sfs/TI_fold.saf.idx > sfs/TI_fold.sfs
 realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/TI_fold.saf.idx > sfs/TI_fold_realSFS_folded_100boots.sfs
 
-realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/AU_fold.saf.idx sfs/TI_fold.saf.idx > sfs/AU_TI_fold_realSFS_folded_100boots.sfs
+realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/AU_fold.saf.idx sfs/TI_fold.saf.idx > sfs/total_fold_realSFS_folded_100boots.sfs
 ```
-## Nucleotide Diversity 
+## Theta Statistics
+Using the ANGSD `-doSaf 1` and realSFS outputs, theta neutrality statistics were estimated using realSFS and associated thetaStat programmes.  
+```
+for POP in AU TI total
+    do
+    tail -n1 sfs/${POP}_fold_realSFS_folded_100boots.sfs > diversity/${POP}_fold.sfs
+    realSFS saf2theta sfs/${POP}_fold.saf.idx -outname diversity/${POP}_fold -sfs diversity/${POP}_fold.sfs -fold 1
+    thetaStat do_stat diversity/${POP}_fold.thetas.idx
+    thetaStat do_stat diversity/${POP}_fold.thetas.idx -win 50000 -step 10000 -outnames diversity/${POP}_fold_thetasWindow
+done
+```
+Only the Watterson's Theta and Tajima's D can be estimated with a folded SFS. The mean value of Tajima's D was estimated by the below.  
+
+Genetic differentiation.  
+```
+realSFS fst index sfs/AU.saf.idx sfs/TI.saf.idx -sfs diversity/total_fold.sfs -fstout distance/total_fst
+
+realSFS fst stats distance/total_fst.idx \
+    -tole 1e-6 -win 50000 -step 10000 -whichFst 1 > distance/total_fst_results.tsv
+```
+This yielded the result:  
 
 ```
-angsd -P 8 -b $POP.bamlist -ref ${ref} -anc ${ref} -out diversity/$POP_fold -sites ${region} \
+-> Assuming idxname:distance/test.fst.idx
+        -> Assuming .fst.gz file: distance/test.fst.gz
+        -> args: tole:0.000001 nthreads:4 maxiter:100 nsites(block):0 start:(null) chr:(null) start:-1 stop:-1 fstout:(null) oldout:0 seed:-1 bootstrap:0 resample_chr:0 whichFst:1 fold:1 ref:(null) anc:reference/TI_scaffolded_as_CT.fasta.gz
+        -> FST.Unweight[nObs:387393642]:0.002465 Fst.Weight:0.857685
+```
+
+We also ran:
+```
+realSFS fst stats2 distance/total_fst.idx \
+    -tole 1e-6 -fold 1 -anc $ref -win 50000 -step 10000 -whichFST 1 > distance/total_fst2_results.tsv
+```
+
+```
+angsd -P 8 -b AU.list -ref ${ref} -anc ${ref} -out diversity/AU_folded -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 10 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
-    -GL 1 -doSaf 1 -doThetas 1 -pest sfs/$POP.sfs
+    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
+    -GL 1 -doSaf 1 -doThetas 1 -pest sfs/AU_fold.sfs
+```
+## Generating VCF
+For other programs and to estimate a Ts/Tv rate for Rohan, a BCF was produced using ANGSD.  
+```
+angsd -P 8 -b GLOBAL.list -ref $ref -out angsd/genotypes/global_GATK_genotypes -uniqueOnly 1 \
+    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
+    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 2 \
+    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
+
+angsd -P 8 -b GLOBAL.list -ref $ref -out angsd/genotypes/global_samtools_genotypes -uniqueOnly 1 \
+    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
+    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 1 \
+    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
 ```

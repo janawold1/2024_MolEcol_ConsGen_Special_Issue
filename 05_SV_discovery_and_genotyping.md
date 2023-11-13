@@ -17,11 +17,11 @@ delly merge -o delly/01_raw_merged_calls.bcf delly/raw_calls/*.bcf
 The raw calls initially comprised of:  
 |    SV Type   | Total Number |
 | ------------ | ------------ |
-|   Breakends  |      875     |
-|   Deletions  |     7,576    |
+|  Breakends   |      875     |
+|  Deletions   |     7,576    |
 | Duplications |      611     |
-|   Insertions |      976     |
-|   Inversions |     1,558    |
+|  Insertions  |      976     |
+|  Inversions  |     1,558    |
 
 These files were used to filter different SV types for quality. This is because Delly is best calling Inversions and Duplications greater than 300bp in length and INDELs greater than 50bp in length. SVs of different types were required to `PASS` all Delly filters and have `PRECISCE` breakpoints.  
 ```
@@ -52,25 +52,26 @@ configManta.py --referenceFasta ${ref} --runDir ${out} --callRegions ${chr} \
 And Manta executed on the resulting `runWorkflow.py` file in the designated output directories.  
 
 ### Manta Filtering
-Filtering of raw Manta calls was relatively simple. First, Inversion calls were converted from Breakends using the `convertInversions.py` script supplied by Manta. Then all reads had to pass all 'hard' filtering thresholds and have 'precise' breakpoints.  
+Filtering of raw Manta calls was relatively simple. First, Inversion calls were converted from Breakends using the `convertInversions.py` script supplied by Manta. Then all reads had to pass all 'hard' filtering thresholds and have 'PRECISE' breakpoints.  
 
 Files for individual chromsomes were then concatenated into a single file with `bcftools`.  
 
-## Cue Discovery
-[Cue](https://github.com/PopicLab/cue#install) vX.X has to be installed using Python3.7. To ensure dependencies installed correctly a conda environment, as will all other programmes, was used. The python version was denoted as per: `conda create -n cue python=3.7`. Then Cue was installed within this environment following the instructions on the the GitHub page.  
-```
-conda create -n cue python=3.7 setuptools=58.0.0 bitarray=1.6.3 cachetools=4.1.0 cython=0.29.21 intervaltree=3.1.0 joblib=0.16.0 matplotlib=3.2.1 numpy=1.18.5 opencv-python=4.5.1.48 pandas=1.0.5 pycocotools=2.0.4 pyfaidx=0.5.9.5 pysam=0.16.0.1 pytabix=0.1 python-dateutil=2.8.1 pyyaml=5.3.1 seaborn=0.11.0 torch=1.5.1 torchvision=0.6.1 jupyter
-```
+## Smoove Discovery
 
-### Cue Filtering
+
+### Smoove Filtering
+
 
 ## Merging Filtered SV Calls
+
 
 # Graph Construction with VG
 
 
 ## Population Genotyping
 
+
 ### Genotype Filtering
+
 
 ### Population Analysis
