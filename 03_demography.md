@@ -1,5 +1,5 @@
 # Demographic Inference with GADMA
-[GADMAvX.X](https://github.com/ctlab/GADMA/tree/master) was used for demographic inference. The *dadi* and *moments* engines were run as per the parameter file below.  
+[GADMA](https://github.com/ctlab/GADMA/tree/master) was used for demographic inference. The *dadi* and *moments* engines were run as per the parameter file below.  
 
 Data was first converted from the SAF output format of ANGSD.  
 ```
@@ -58,7 +58,7 @@ Only models: False
 Finally, GADMA was run with `gadma --params gadma_folded_param_file`
 
 ## Historical Ne with StairwayPlot2
-Inferring population demographic history from the SFS. Like with GADMA, [StairwayPlot2v2.1.1]() uses a parameter file outlining requirements for executing the programme.
+Inferring population demographic history from the SFS. Like with GADMA, [StairwayPlot2v2.1.1](https://github.com/xiaoming-liu/stairway-plot-v2) uses a parameter file outlining requirements for executing the programme.
 ```
 # input setting
 popid: AU

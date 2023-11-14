@@ -9,11 +9,6 @@ for cram in ${dir}*_nodup_autosomes.cram
     delly call -g ${ref} -o delly/raw_calls/${base}.bcf ${cram}
 done
 ```
-### Delly Filtering
-Once initial calls were made, the file was merged and filtered for two different minimum sizes.  
-```
-delly merge -o delly/01_raw_merged_calls.bcf delly/raw_calls/*.bcf
-```
 The raw calls initially comprised of:  
 |    SV Type   | Total Number |
 | ------------ | ------------ |
@@ -23,12 +18,18 @@ The raw calls initially comprised of:
 |  Insertions  |      976     |
 |  Inversions  |     1,558    |
 
+### Delly Filtering
+Once initial calls were made, the file was merged and filtered for two different minimum sizes.  
+```
+delly merge -o delly/01_raw_merged_calls.bcf delly/raw_calls/*.bcf
+```
+
 These files were used to filter different SV types for quality. This is because Delly is best calling Inversions and Duplications greater than 300bp in length and INDELs greater than 50bp in length. SVs of different types were required to `PASS` all Delly filters and have `PRECISCE` breakpoints.  
 ```
 bcftools view -i 'FILTER=="PASS" & INFO/PRECISE==1 & SVTYPE!="BND"' \
     -O b -o delly/02_SV_filtered.bcf delly/01_raw_merged_calls.bcf
 ```
-These final SVs were used as input into the VG graph outlined below.  
+These final SVs were then merged with the other datasets and used as input into the VG graph as outlined below.  
 ## Manta Discovery
 [Manta](https://github.com/Illumina/manta) v1.6.0 was used to call SVs for Australian fairy tern and tara iti. Three samples had to be excluded for Manta to run, AU13, TI06, TI34 & TI35. The errors indicated issues with the proportion of reads and read depth statistics. Each chromosome was called independently with the `--callRegions` flag to save computational resource and increase efficiency. Running Manta is relatively simple, with the initial configuration setup as per:
 ```
@@ -51,6 +52,15 @@ configManta.py --referenceFasta ${ref} --runDir ${out} --callRegions ${chr} \
 ``` 
 And Manta executed on the resulting `runWorkflow.py` file in the designated output directories.  
 
+The raw calls initially comprised of:  
+|    SV Type   | Total Number |
+| ------------ | ------------ |
+|  Breakends   |      XXX     |
+|  Deletions   |     X,XXX    |
+| Duplications |      XXX     |
+|  Insertions  |      XXX     |
+|  Inversions  |     X,XXX    |
+
 ### Manta Filtering
 Filtering of raw Manta calls was relatively simple. First, Inversion calls were converted from Breakends using the `convertInversions.py` script supplied by Manta. Then all reads had to pass all 'hard' filtering thresholds and have 'PRECISE' breakpoints.  
 
@@ -58,6 +68,27 @@ Files for individual chromsomes were then concatenated into a single file with `
 
 ## Smoove Discovery
 
+```
+for cram in ${dir}*_nodup_autosomes.cram
+    do
+    base=$(basename ${cram} _nodup_autosomes.cram)
+    echo "RUNNING SMOOVE CALL FOR ${base}..."
+    smoove call --name ${base} --fasta ${ref} --outdir smoove/raw_calls/ --genotype ${cram}
+done
+```
+Then calls for all individuals were merged into a single file.  
+```
+echo "Merging all called variants..."
+smoove merge --name bwa_smoove -f ${ref} --outdir ${out} ${out}SV_calls_male/*.genotyped.vcf.gz ${out}SV_calls_female/*.genotyped.vcf.gz
+```
+The raw calls initially comprised of:  
+|    SV Type   | Total Number |
+| ------------ | ------------ |
+|  Breakends   |      XXX     |
+|  Deletions   |     X,XXX    |
+| Duplications |      XXX     |
+|  Insertions  |      XXX     |
+|  Inversions  |     X,XXX    |
 
 ### Smoove Filtering
 
@@ -65,13 +96,13 @@ Files for individual chromsomes were then concatenated into a single file with `
 ## Merging Filtered SV Calls
 
 
-# Graph Construction with VG
+## Graph Construction with VG
 
 
-## Population Genotyping
+## Population-scale Genotyping
 
 
 ### Genotype Filtering
 
 
-### Population Analysis
+## Population Analysis

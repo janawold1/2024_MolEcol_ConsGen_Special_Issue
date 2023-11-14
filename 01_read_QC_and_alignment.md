@@ -1,7 +1,6 @@
 # Illumina Read Processing and Alignment
 ## Initial QC and Trimming
-Initial sequencing results were visualised with FastQCvX.X and MultiQCvX.X. Reads were trimmed using [TrimGalorevX.X]().  
-
+Initial sequencing results were visualised with FastQCvX.X and MultiQCvX.X. Reads were trimmed using [TrimGalorevX.X](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/).  
 ```
 ref=/dir/to/reference.fasta
 dir=/dir/to/reads/
@@ -37,7 +36,7 @@ Overall, reads were aligned to three reference genomes: 1) the common tern genom
 ```
 ragtag.py scaffold -o reference/ragtag_TI_as_CT/ reference/common_tern.fasta reference/tara_iti_masurca_v2.fasta
 ```
-Reads were aligned to all three genomes for the common tern, tara iti and scaffolded tara iti datasets. All manipulation of alignment files was performed with [SAMtools v1.17]()
+Reads were aligned to all three genomes for the common tern, tara iti and scaffolded tara iti datasets. All manipulation of alignment files was performed with [SAMtools v1.17](https://www.htslib.org/).  
 ```
 #!/bin/bash -e
 ref=/media/jana/BigData/tara_iti_publication/reference/TI_scaffolded_as_CT.fasta.gz
@@ -88,7 +87,7 @@ for lib in lib2 LIC002
 done
 ```
 
-All alignments to all three reference assemblies were sorted and PCR duplicates removed using `SAMtools`.   
+All alignments to all three reference assemblies were sorted and PCR duplicates removed using `SAMtools`.  
 ```
 for bam in ${dir}bam/*_merged.bam
     do

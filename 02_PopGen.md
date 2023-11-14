@@ -9,6 +9,7 @@ angsd -P 8 -b GLOBAL.list -ref $ref -out qc/GLOBAL.qc \
     -doCounts 1 -maxDepth 1000
 ```
 Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md), the distributions of these sites were visualised with `Rscript ~/ngsTools/Scripts/plotQC.R GLOBAL.qc` and meaningful filtering thresholds were identified. Below is a table outlining filtering thresholds for subsequent population analyses.
+
 |      Population     |minimum mapQ|minimum Q|minimum depth|maximum depth|minimum individuals|
 | ------------------- | ---------- | ------- | ----------- | ----------- | ----------------- |
 |Australian Fairy Tern|     20     |    20   |     114     |     350     |        19         |
@@ -19,7 +20,7 @@ A missingness threshold of 0% or 10% were used when appropriate for all subseque
 ## Removing coding Regions
 [BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.31.0 was used to find the complement of the UCSC annotation and exclude coding regions of the genome. An additional 1kb of sequence on either side of annotations were included to reduce linkage.  
 
-First, the annotations for autosomal chromosomes were extracted and the window size for these regions increased by 1kb on either side.  
+First, the annotations for autosomal chromosomes were extracted and the window size for these regions increased by 1kb on either side for each annotation file.  
 ```
 zcat reference/GCA_009819605.1/genes/GCA_009819605.1_bSteHir1.pri.xenoRefGene.gtf.gz | \
     sort | \
@@ -53,12 +54,16 @@ bedtools complement -i reference/GCA_009819605.1/genes/all_autosomal_annotations
     -g reference/TI_scaffolded_as_CT_bedtools_genome.txt | grep -v sf | grep -v WNM | \
     grep -v CM020500 | grep -v CM020463 | grep -v CM020462 > angsd_scaffolded/TI_scaffolded_neutral_regions.bed
 ```
-No regions within 1kb of the start/end of the chromosome were retained. This left 22,167 regions covering 615,256,912 bp for analyses. This corresponds to roughly 52% of the genome. This file was then indexed for use with the `angsd -sites` option.  
+No regions within 1kb of the start/end of the chromosome were retained to account for poor assembly at repetitive regions of the genome. This left 22,167 regions covering 615,256,912 bp for analyses. This corresponds to roughly 52% of the genome.  
+
+This file was then indexed for use with the `angsd -sites` option.  
 ```
 angsd sites index TI_scaffolded_neutral_regions.bed
 ```
 
 We also extracted the autosomoal chromosomes from the common tern assembly, and renamed them with the same names in the tara iti reference assembly. This was so we could polarize the site frequency spectrum with common tern as the ancestral state.  
+
+## Remember ANGSD method of reconstructing outgroup when TI ONT assembly complete
 ```
 faSomeRecords common_tern.fa common_tern_autosomes.bed common_tern_autosomes.fasta
 
