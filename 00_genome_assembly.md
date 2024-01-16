@@ -46,14 +46,13 @@ flye --nano-raw ${reads}${indiv}/${indiv}_q20_5kb.fastq \
   --threads 24 --debug
 done
 ```
-This resulted in genome assemblies with:
+Table 1. This resulted in genome assemblies with:
 | Read Inputs | Estimated Depth (FLYE) | Number of Scaffolds | Scaffold N50 (Mbp) | Size of Largest Scaffold (Mbp) |
 |:-----------:|:----------------------:|:-------------------:|:------------------:|:------------------------------:|
 |   Q20, 1kb  |           43           |         692         |       27.4         |              74.7              |
 |   Q20, 5kb  |           38           |         497         |       24.3         |              77.6              |
 |  Q20, 10kb  |           29           |         486         |       24.3         |              83.6              |
 
-The genome assembly using a minimum read length of 5kb was used for genome polishing and scaffolding as it represented a good balance of coverage and contiguity.  
 ## Polishing and Scaffolding
 A combination of [Racon v1.5.0](https://github.com/isovic/racon) and [longstitch v1.0.4](https://github.com/bcgsc/LongStitch) were used to polish and scaffold the genome. The below script aligns reads to the draft assembly using [Minimap2 v2.24](https://github.com/lh3/minimap2) for polishing with RACON and scaffolding with Longstitch. Polishing and scaffolding was repeated for two rounds.  
 ```
@@ -107,4 +106,18 @@ for indiv in Katie
         date
 done
 ```
-Finally, assembly quality was assessed using [BUSCO vX.X]() to assess how complete it may be, [Quast vX.X]() to assess contiguity, and [D-GENIES]() to visualise structural differences with a HQ assembly for a congeneric tern ([*Sterna hirundo*]()).  
+Finally, assembly quality was assessed using [BUSCO]()vX.X to assess how complete it may be, [Quast]()vX.X to assess contiguity, and [D-GENIES]() to visualise structural differences with a HQ assembly for the common tern ([*Sterna hirundo*](https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_009819605.1/)).  
+
+Table 2. Final assembly summary statistics:
+| Read Inputs | BUSCO (% Complete) | Number of Scaffolds | Scaffold N50 (Mbp) | Size of Largest Scaffold (Mbp) |
+|:-----------:|:------------------:|:-------------------:|:------------------:|:------------------------------:|
+|   Q20, 1kb  |        XX.X        |         XXX         |       XX.X         |              XX.X              |
+|   Q20, 5kb  |        XX.X        |         XXX         |       XX.X         |              XX.X              |
+|  Q20, 10kb  |        XX.X        |         XXX         |       XX.X         |              XX.X              |
+
+In the end, the genome assembly generated using a minimum read length of 5kb was used for population read alignment and analyses as it represented a good balance of coverage (Table 1) and contiguity (Table 2).  
+
+The *de novo* tara iti assembly was not chromosomally resolved. Because common terns and fairy terns are relatively related species and demonstrate high synteny, we used the common tern as a reference to scaffold the tara iti assembly in an attempt to retain information for polarizing the site frequency spectrum (SFS) and maximise our ability to call structural variants. This was accomplished by whole-genome alignment with Minimap as implemented in [RagTag](https://github.com/malonge/RagTag)vX.X.  
+```
+ragtag.py scaffold -o reference/Katie_ragtag/ reference/common_tern.fasta reference/Katie.fasta
+```

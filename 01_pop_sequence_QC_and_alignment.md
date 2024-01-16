@@ -30,18 +30,12 @@ trim_galore --paired \
 done
 ```
 ## Alignment
-The *de novo* tara iti assembly was highly fragmented. Because common terns and fairy terns are congeneric species, we used the common tern as a reference to scaffold the tara iti assembly in an attempt to retain information for polarizing the site frequency spectrum (SFS) and maximise our ability to call structural variants. This was accomplished by whole-genome alignment with Minimap as implemented in [RagTag](https://github.com/malonge/RagTag).
-
-Overall, reads were aligned to three reference genomes: 1) the common tern genome assembly; 2) the *de novo* tara iti assembly; and 3) the tara iti assembly scaffolded using the common tern as reference. These three datasets were aligned, PCR-duplicates removed and alignment statistics estimated in the same manner (outlined below).  
-```
-ragtag.py scaffold -o reference/ragtag_TI_as_CT/ reference/common_tern.fasta reference/tara_iti_masurca_v2.fasta
-```
-Reads were aligned to all three genomes for the common tern, tara iti and scaffolded tara iti datasets. All manipulation of alignment files was performed with [SAMtools v1.17](https://www.htslib.org/).  
+For population analyses, Illumina short-reads were aligned, PCR-duplicates removed, and alignment statistics estimated in the same manner for both Australian fairy tern and tara iti (outlined below). All manipulation of alignment files was performed with [SAMtools v1.17](https://www.htslib.org/).  
 ```
 #!/bin/bash -e
-ref=/media/jana/BigData/tara_iti_publication/reference/TI_scaffolded_as_CT.fasta.gz
+ref=/media/jana/BigData/tara_iti_publication/reference/Katie_ragtag.fasta
 reads=/media/jana/BigData/tara_iti_publication/reads/
-out=/media/jana/BigData/tara_iti_publication/tara_iti_alignments/scaffolded_as_common_tern/
+out=/media/jana/BigData/tara_iti_publication/alignments/
 
 for lib in lib1 lib2 LIC001 LIC002
         do
@@ -71,7 +65,13 @@ for lib in lib1 lib2 LIC001 LIC002
 done
 ```
 Files were then merged for each of the datasets, the reference sample is the only individual sequenced at two different facilites.  
-```samtools merge -@ 16 -o ${out}bam/SP01_merged.bam ${out}bam/SP01_lib1.bam ${out}bam/SP01_lib2.bam ${out}bam/SP01_LIC001.bam ${out}bam/SP01_LIC002.bam```
+```
+samtools merge -@ 16 \
+    -o ${out}bam/SP01_merged.bam \
+    ${out}bam/SP01_lib1.bam ${out}bam/SP01_lib2.bam \
+    ${out}bam/SP01_LIC001.bam \
+    ${out}bam/SP01_LIC002.bam
+```
  
  The `for` loop below was used to merge all other samples.  
 ```
