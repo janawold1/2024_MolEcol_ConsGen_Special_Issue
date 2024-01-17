@@ -121,7 +121,7 @@ In the end, the genome assembly generated using a minimum read length of 5kb was
         <div style="text-align: center;">
         <img src="https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/Figures/Katie_q20_5kb_longstitch1_racon2_to_CommonTern.png"
              alt="Tara iti genome aligned against the common tern genome for comparing synteny and contiguity"
-             width="500" height="500">
+             width="1000" height="1000">
         <figcaption>Tara iti draft assembly mapped to the VGP assembly for Common tern.</figcaption>
 </figure>
 
