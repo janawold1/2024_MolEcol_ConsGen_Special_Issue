@@ -61,7 +61,9 @@ This file was then indexed for use with the `angsd -sites` option.
 angsd sites index TI_scaffolded_neutral_regions.bed
 ```
 
-We also extracted the autosomoal chromosomes from the common tern assembly, and renamed them with the same names in the tara iti reference assembly. This was so we could polarize the site frequency spectrum with common tern as the ancestral state.  
+We also extracted the autosomoal chromosomes from the common tern assembly, and renamed them with the same names in the tara iti reference assembly. This was so we could polarize the site frequency spectrum with common tern as the ancestral state. 
+
+# Test for Sex Specific differences?
 
 ## Remember ANGSD method of reconstructing outgroup when TI ONT assembly complete
 ```
@@ -247,6 +249,9 @@ Rscript plotMDS.R -i distance/GLOBAL.mds -c 1-2 -a structure/GLOBAL_noMiss.clst 
 ```
 ### Population Structure with Inbreeding
 Initial inbreeding estimates for tara iti indicate that the population is likely out of hardy-weinburg equilibrium (HWE). To account for this, relative inbreeding levels were incorporated into assessments of population structure.  
+
+### Geographic Population Structure (GPS)
+Analyses of population structure using PCAs have been shown to exhibit bias ([Elhaik et al 2022](https://doi.org/10.1038/ncomms4513)). Admixture based appraoches, like those implemented in [GPS](https://github.com/arash-darzian/Geographic_Population_Structure_GPS/tree/main) have been proposed. This program leverages XXX may not want to use as it has a strong aDNA focus XXX
 
 ## Summary Statistics
 ### Site Frequency Spectrum

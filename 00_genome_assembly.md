@@ -118,6 +118,7 @@ Table 2. Final assembly summary statistics:
 In the end, the genome assembly generated using a minimum read length of 5kb was used for population read alignment and analyses as it represented a good balance of coverage (Table 1) and contiguity (Table 2).  
 
 The *de novo* tara iti assembly was not chromosomally resolved. Because common terns and fairy terns are relatively related species and demonstrate high synteny, we used the common tern as a reference to scaffold the tara iti assembly in an attempt to retain information for polarizing the site frequency spectrum (SFS) and maximise our ability to call structural variants. This was accomplished by whole-genome alignment with Minimap as implemented in [RagTag](https://github.com/malonge/RagTag)vX.X.  
+![AltText](http:)
 ```
 ragtag.py scaffold -o reference/Katie_ragtag/ reference/common_tern.fasta reference/Katie.fasta
 ```
