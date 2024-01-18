@@ -90,7 +90,7 @@ samtools faidx common_tern_subset.fasta.gz
 ```
 ## Inbreeding Estimates
 ### F statistics
-To estimate relative levels of inbreeding and account for the high liklihood that tara iti do not conform to Hardy-Weinberg Equilibrium (HWE), we first generated population specific genotype likelihoods for input into [ngsF](https://github.com/mfumagalli/ngsTools) v1.2.0-STD. The outputs of these analyses can also be used as a prior for populations that are not in hardy-weinburg equilibrium (HWE).  
+To estimate relative levels of inbreeding and account for the high likelihood that tara iti do not conform to Hardy-Weinberg Equilibrium (HWE), we first generated population specific genotype likelihoods for input into [ngsF](https://github.com/mfumagalli/ngsTools) v1.2.0-STD. The outputs of these analyses can also be used as a prior for populations that are not in hardy-weinburg equilibrium (HWE).  
 ```
 angsd -P 8 -b AU.list -ref $ref -out inbreeding/AU -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
@@ -139,7 +139,7 @@ done
 ### Runs of Homozygosity
 Two methods were used to estimate runs of homozygosity, [ROHAN](https://github.com/grenaud/rohan) and an approach using ANGSD.  
 
-For ROHAN, all PCR-duplicates were removed as recommended. 
+For ROHAN, all PCR-duplicates were removed as recommended.  
 ```
 samtools markdup -@16 -r --write-index *_nodup_autosomes.cram *_rohan.bam
 ```
@@ -152,7 +152,7 @@ for bam in *_rohan.bam
     rohan --size 50000 --rohmu 4.6e-9 -t 16 --tstv 2.36 -o output/${base} $ref $bam
 done
 ```
-### ROH-Size Clustering
+#### ROH-Size Clustering
 Run in R
 Create a one-column file (e.g., scat_rohs.txt) with ROH sizes across all samples
 These ROH sizes were obtained from above after excluding microchromosomal scaffolds

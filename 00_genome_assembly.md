@@ -4,7 +4,7 @@ Two tara iti clutchmates (1 male, 1 female) passed away as a result of a storm i
 The short-read data were processed as per [01_pop_sequence_QC_and_alignment.md](https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/01_pop_sequence_QC_and_alignment.md), while the ONT data was prepared as per below.
 
 ## Basecalling and Read Trimming
-One library preparation was sufficient for all ONT sequencing. The PromethION flow cell was washed and loaded four times. All ONT `.pod5` files were basecalled using [Dorado v0.5.0](https://github.com/nanoporetech/dorado?tab=readme-ov-file#dna-models) and the `dna_r10.4.1_e8.2_400bps_sup@v4.3.0` model. First, stereo basecalling was performed. Here, `$pod5_dir` represents the directory where raw `.pod5` files were stored, `$indiv` represents the individual ID of the reference genome and `$model` represents the Dorado basecalling model used.  
+One library preparation was sufficient for all ONT sequencing. The PromethION flow cell was washed and loaded four times. All ONT `.pod5` files were basecalled using [Dorado](https://github.com/nanoporetech/dorado?tab=readme-ov-file#dna-models) v0.5.0 and the `dna_r10.4.1_e8.2_400bps_sup@v4.3.0` model. First, stereo basecalling was performed. Here, `$pod5_dir` represents the directory where raw `.pod5` files were stored, `$indiv` represents the individual ID of the reference genome and `$model` represents the Dorado basecalling model used.  
 ```
 model=dna_r10.4.1_e8.2_400bps_sup@v4.3.0
 #dorado download --model ${model}
@@ -13,7 +13,7 @@ dorado basecaller --min-qscore 10 --emit-moves ${model} \
   ${pod5_dir}${indiv}/${lib}/ > ${out}${indiv}/${indiv}_${lib}_R10_moves.sam --device 'cuda:all'
 ```
 
-`.sam` outputs from basecalling were then indexed using SAMtools v1.16 and duplex tools v0.2.20 was used to identify duplex pairs.  
+`.sam` outputs from basecalling were then indexed using [SAMtools](https://github.com/samtools/samtools) v1.16 and [duplex tools](https://github.com/nanoporetech/duplex-tools) v0.2.20 was used to identify duplex pairs.  
 ```
 samtools index -@ 16 ${out}${indiv}/${indiv}_${lib}_R10_moves.sam
 
@@ -26,7 +26,7 @@ duplex_tools split_pairs --debug --threads 32 \
   ${pod5_dir}${indiv}/${lib} \
   ${dup_pod}${indiv}/${lib}
 ```
-And finally, duplex basecalling for paired and split-paired reads was performed with Dorado. Prior to performing this step, the outputs from duplex tools were renamed to have the structure of `$indiv_$lib_*`. This denotes the genome ID (`$indiv`) and ONT run (`$lib`).  
+Duplex basecalling for paired and split-paired reads was performed with Dorado. Prior to performing this step, the outputs from duplex tools were renamed to have the structure of `$indiv_$lib_*`. This denotes the genome ID (`$indiv`) and ONT run (`$lib`).  
 ```
 dorado duplex ${model} ${pod5_dir}${indiv}/${lib}/ \
   --pairs ${out}${indiv}/${lib}_pair_ids_filtered.txt > ${out}${indiv}/${indiv}_${lib}_duplex_orig.sam
@@ -37,7 +37,18 @@ dorado duplex ${model} ${split}${indiv}/${lib}/ \
   --pairs ${out}${indiv}/${lib}_split_duplex_pair_ids.txt > ${out}${indiv}/${indiv}_${lib}_duplex_splitduplex.sam
 ```
 ### Read Trimming 
-
+Reads from both simplex and duplex calls were converted to FastQ format with SAMtools.
+```
+samtools fastq ${out}${indiv}/${indiv}_${lib}_R10_moves.sam > ${out}${indiv}/${indiv}.fastq
+samtools fastq ${out}${indiv}/${indiv}_${lib}_duplex_orig.sam >> ${out}${indiv}/${indiv}.fastq
+samtools fastq ${out}${indiv}/${indiv}_${lib}_duplex_splitduplex.sam >> ${out}${indiv}/${indiv}.fastq
+```
+Adapter trimming was not performed as Dorado now performs trimming as part of the basecalling process ([discussed briefly here]()). [Chopper](https://github.com/wdecoster/chopper) v0.5.0, which is the Rust implementation of NanoFilt & NanoLyse, was used to trim reads to a minimum Q score of 20 and 3 minimum lengths, 1kb, 5kb and 10kb.  
+```
+cat ${out}${indiv}/${indiv}.fastq | chopper -q 20 -l 1000 > ${out}${indiv}/${indiv}_dorado_q20_1kb.fq
+cat ${out}${indiv}/${indiv}.fastq | chopper -q 20 -l 5000 > ${out}${indiv}/${indiv}_dorado_q20_5kb.fq
+cat ${out}${indiv}/${indiv}.fastq | chopper -q 20 -l 10000 > ${out}${indiv}/${indiv}_dorado_q20_10kb.fq
+```
 ## Initial Genome Assembly
 Initial genome assemblies using reads trimmed to a minimum Q-score of 20 and a minimium length of either 1, 5 or 10kb were performed using [FLYE v2.9.1](https://github.com/fenderglass/Flye).  
 ```
@@ -46,12 +57,12 @@ flye --nano-raw ${reads}${indiv}/${indiv}_q20_5kb.fastq \
   --threads 24 --debug
 done
 ```
-**Table 1. This resulted in genome assemblies with:**
-| Read Inputs | Estimated Depth (FLYE) | Number of Scaffolds | Scaffold N50 (Mbp) | Scaffold L50 | Size of Largest Scaffold (Mbp) |
-|:-----------:|:----------------------:|:-------------------:|:------------------:|:------------:|:------------------------------:|
-|   Q20, 1kb  |           43           |         692         |       27.4         |     XX       |              74.7              |
-|   Q20, 5kb  |           38           |         497         |       24.3         |     XX       |              77.6              |
-|  Q20, 10kb  |           29           |         486         |       24.3         |     14       |              83.6              |
+**Table 1. Initial assembly statistics:**
+| Read Inputs | Estimated Depth (FLYE) | # Scaffolds | N50 (Mbp) | L50 | Largest Scaffold Size (Mbp) |
+|:-----------:|:----------------------:|:-----------:|:---------:|:---:|:---------------------------:|
+|   Q20, 1kb  |           43           |     692     |  27.4     | XX  |             74.7            |
+|   Q20, 5kb  |           38           |     497     |  24.3     | XX  |             77.6            |
+|  Q20, 10kb  |           29           |     486     |  24.3     | 14  |             83.6            |
 
 ## Polishing and Scaffolding
 A combination of [Racon v1.5.0](https://github.com/isovic/racon) and [longstitch v1.0.4](https://github.com/bcgsc/LongStitch) were used to polish and scaffold the genome. The below script aligns reads to the draft assembly using [Minimap2 v2.24](https://github.com/lh3/minimap2) for polishing with RACON and scaffolding with Longstitch. Polishing and scaffolding was repeated for two rounds.  
@@ -109,11 +120,11 @@ done
 Finally, assembly quality was assessed using [BUSCO](https://busco.ezlab.org/) v5.4.7 to assess how complete it may be, and [Quast](https://github.com/ablab/quast) v5.2.0 to assess contiguity (Table 2).  
 
 **Table 2. Final assembly summary statistics:**
-| Read Inputs | BUSCO (% Complete) | Number of Scaffolds | Scaffold N50 (Mbp) | Scaffold L50 | Size of Largest Scaffold (Mbp) | Number of N's per 100 kbp |
-|:-----------:|:------------------:|:-------------------:|:------------------:|:------------:|:------------------------------:|:-------------------------:|
-|   Q20, 1kb  |        XX.X        |         433         |       48.3         |      8       |             100.3              |           25.9            |
-|   Q20, 5kb  |        XX.X        |         XXX         |       XX.X         |     XX       |              XX.X              |           XX.X            |
-|  Q20, 10kb  |        XX.X        |         283         |       35.4         |     10       |              86.9              |            6.2            |
+| Read Inputs | % Complete BUSCO | % Missing BUSCO | # Scaffolds | N50 (Mbp) | L50 | Largest Scaffold Size (Mbp) | # N's per 100 kbp |
+|:-----------:|:----------------:|:---------------:|:-----------:|:---------:|:---:|:---------------------------:|:-----------------:|
+|   Q20, 1kb  |       XX.X       |       X.X       |     433     |   48.3    |  8  |            100.3            |       25.9        |
+|   Q20, 5kb  |       XX.X       |       X.X       |     XXX     |   XX.X    | XX  |             XX.X            |        X.X        |
+|  Q20, 10kb  |       97.5       |       2.1       |     283     |   35.4    | 10  |             86.9            |        6.2        |
 
 
 [D-GENIES](https://dgenies.toulouse.inra.fr/) (figure below) to visualise structural differences with a HQ assembly for the common tern ([*Sterna hirundo*](https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_009819605.1/)).  
