@@ -135,8 +135,9 @@ In the end, the genome assembly generated using a minimum read length of 5kb was
         <div style="text-align: center;">
         <img src="https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/Figures/Katie_q20_5kb_longstitch1_racon2_to_CommonTern.png"
              alt="Tara iti genome aligned against the common tern genome for comparing synteny and contiguity"
-             width="750" height="750">
-        <figcaption>Tara iti draft assembly mapped to the VGP assembly for Common tern. In this dotplot, the tara iti assembly is represented along the y-axis and the common tern assebly is along the x-axis.</figcaption>
+             width="600" height="600">
+        </div>
+        <figcaption>Tara iti draft assembly mapped to the VGP assembly for Common tern. In this dotplot, the tara iti assembly is represented along the y-axis and the common tern assembly is along the x-axis.</figcaption>
 </figure>
 
 Unsurprisingly, the *de novo* tara iti assembly was not chromosomally resolved. Because common terns and fairy terns are relatively related species and demonstrate high synteny, we used the common tern as a reference to scaffold the tara iti assembly with [RagTag](https://github.com/malonge/RagTag) vX.X to maximise our ability to call structural variants.  
