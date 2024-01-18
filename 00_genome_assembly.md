@@ -46,12 +46,12 @@ flye --nano-raw ${reads}${indiv}/${indiv}_q20_5kb.fastq \
   --threads 24 --debug
 done
 ```
-Table 1. This resulted in genome assemblies with:
-| Read Inputs | Estimated Depth (FLYE) | Number of Scaffolds | Scaffold N50 (Mbp) | Size of Largest Scaffold (Mbp) |
-|:-----------:|:----------------------:|:-------------------:|:------------------:|:------------------------------:|
-|   Q20, 1kb  |           43           |         692         |       27.4         |              74.7              |
-|   Q20, 5kb  |           38           |         497         |       24.3         |              77.6              |
-|  Q20, 10kb  |           29           |         486         |       24.3         |              83.6              |
+**Table 1. This resulted in genome assemblies with:**
+| Read Inputs | Estimated Depth (FLYE) | Number of Scaffolds | Scaffold N50 (Mbp) | Scaffold L50 | Size of Largest Scaffold (Mbp) |
+|:-----------:|:----------------------:|:-------------------:|:------------------:|:------------:|:------------------------------:|
+|   Q20, 1kb  |           43           |         692         |       27.4         |     XX       |              74.7              |
+|   Q20, 5kb  |           38           |         497         |       24.3         |     XX       |              77.6              |
+|  Q20, 10kb  |           29           |         486         |       24.3         |     14       |              83.6              |
 
 ## Polishing and Scaffolding
 A combination of [Racon v1.5.0](https://github.com/isovic/racon) and [longstitch v1.0.4](https://github.com/bcgsc/LongStitch) were used to polish and scaffold the genome. The below script aligns reads to the draft assembly using [Minimap2 v2.24](https://github.com/lh3/minimap2) for polishing with RACON and scaffolding with Longstitch. Polishing and scaffolding was repeated for two rounds.  
@@ -106,27 +106,29 @@ for indiv in Katie
         date
 done
 ```
-Finally, assembly quality was assessed using [BUSCO]()vX.X to assess how complete it may be, [Quast]()vX.X to assess contiguity, and [D-GENIES]() to visualise structural differences with a HQ assembly for the common tern ([*Sterna hirundo*](https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_009819605.1/)).  
+Finally, assembly quality was assessed using [BUSCO](https://busco.ezlab.org/) v5.4.7 to assess how complete it may be, and [Quast](https://github.com/ablab/quast) v5.2.0 to assess contiguity (Table 2).  
 
-Table 2. Final assembly summary statistics:
-| Read Inputs | BUSCO (% Complete) | Number of Scaffolds | Scaffold N50 (Mbp) | Size of Largest Scaffold (Mbp) |
-|:-----------:|:------------------:|:-------------------:|:------------------:|:------------------------------:|
-|   Q20, 1kb  |        XX.X        |         XXX         |       XX.X         |              XX.X              |
-|   Q20, 5kb  |        XX.X        |         XXX         |       XX.X         |              XX.X              |
-|  Q20, 10kb  |        XX.X        |         XXX         |       XX.X         |              XX.X              |
+**Table 2. Final assembly summary statistics:**
+| Read Inputs | BUSCO (% Complete) | Number of Scaffolds | Scaffold N50 (Mbp) | Scaffold L50 | Size of Largest Scaffold (Mbp) | Number of N's per 100 kbp |
+|:-----------:|:------------------:|:-------------------:|:------------------:|:------------:|:------------------------------:|:-------------------------:|
+|   Q20, 1kb  |        XX.X        |         433         |       48.3         |      8       |             100.3              |           25.9            |
+|   Q20, 5kb  |        XX.X        |         XXX         |       XX.X         |     XX       |              XX.X              |           XX.X            |
+|  Q20, 10kb  |        XX.X        |         283         |       35.4         |     10       |              86.9              |            6.2            |
 
-In the end, the genome assembly generated using a minimum read length of 5kb was used for population read alignment and analyses as it represented a good balance of coverage (Table 1) and contiguity (Table 2).  
+
+[D-GENIES](https://dgenies.toulouse.inra.fr/) (figure below) to visualise structural differences with a HQ assembly for the common tern ([*Sterna hirundo*](https://www.ncbi.nlm.nih.gov/datasets/genome/GCA_009819605.1/)).  
+
+In the end, the genome assembly generated using a minimum read length of 5kb was used for population read alignment and analyses as it represented a good balance of coverage (Table 1) and contiguity (Table 2).
 
 <figure>
         <div style="text-align: center;">
         <img src="https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/Figures/Katie_q20_5kb_longstitch1_racon2_to_CommonTern.png"
              alt="Tara iti genome aligned against the common tern genome for comparing synteny and contiguity"
-             width="1000" height="1000">
-        <figcaption>Tara iti draft assembly mapped to the VGP assembly for Common tern.</figcaption>
+             width="750" height="750">
+        <figcaption>Tara iti draft assembly mapped to the VGP assembly for Common tern. In this dotplot, the tara iti assembly is represented along the y-axis and the common tern assebly is along the x-axis.</figcaption>
 </figure>
 
-The *de novo* tara iti assembly was not chromosomally resolved. Because common terns and fairy terns are relatively related species and demonstrate high synteny, we used the common tern as a reference to scaffold the tara iti assembly in an attempt to retain information for polarizing the site frequency spectrum (SFS) and maximise our ability to call structural variants. This was accomplished by whole-genome alignment with Minimap as implemented in [RagTag](https://github.com/malonge/RagTag)vX.X.  
-
+Unsurprisingly, the *de novo* tara iti assembly was not chromosomally resolved. Because common terns and fairy terns are relatively related species and demonstrate high synteny, we used the common tern as a reference to scaffold the tara iti assembly with [RagTag](https://github.com/malonge/RagTag) vX.X to maximise our ability to call structural variants.  
 ```
 ragtag.py scaffold -o reference/Katie_ragtag/ reference/common_tern.fasta reference/Katie.fasta
 ```
