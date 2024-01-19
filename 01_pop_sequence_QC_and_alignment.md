@@ -71,7 +71,7 @@ samtools merge -@ 16 \
     ${out}bam/SP01_LIC002.bam
 ```
  
- The `for` loop below was used to merge all other samples.  
+ This `for` loop below was used to merge all other samples.  
 ```
 for lib in lib2 LIC002
     do
