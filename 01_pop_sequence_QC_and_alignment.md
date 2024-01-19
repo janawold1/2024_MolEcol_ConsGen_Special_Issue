@@ -30,41 +30,39 @@ trim_galore --paired \
 done
 ```
 ## Alignment
-For population analyses, Illumina short-reads were aligned, PCR-duplicates removed, and alignment statistics estimated in the same manner for both Australian fairy tern and tara iti (outlined below). All manipulation of alignment files was performed with [SAMtools v1.17](https://www.htslib.org/).  
+For population analyses, Illumina short-reads were aligned, PCR-duplicates removed, and alignment statistics estimated in the same manner for both Australian fairy tern and tara iti (outlined below). All manipulation of alignment files was performed with [SAMtools v1.16](https://www.htslib.org/).  
 ```
 #!/bin/bash -e
-ref=/media/jana/BigData/tara_iti_publication/reference/Katie_ragtag.fasta
+ref=/media/jana/BigData/tara_iti_publication/reference/Katie_5kb_ragtag.fa
 reads=/media/jana/BigData/tara_iti_publication/reads/
 out=/media/jana/BigData/tara_iti_publication/alignments/
-
-for lib in lib1 lib2 LIC001 LIC002
+for LIB in lib1 lib2 LIC001 LIC002
+    for SAMP in ${INPUT}${LIB}/*_R1.fq.gz
         do
-        for samp in ${reads}${lib}/*_${lib}_R1.fq.gz
-                do
-                base=$(basename $samp _${lib}_R1.fq.gz)
-                infoline=$(zcat ${samp} | head -n 1)
-                instrument=`echo ${infoline} | cut -d ':' -f1`
-                instrumentrun=`echo ${infoline} | cut -d ':' -f2`
-                flowcell=`echo ${infoline} | cut -d ':' -f3`
-                lane=`echo ${infoline} | cut -d ':' -f4`
-                index=`echo ${infoline} | cut -d ':' -f10`
+        BASE=$(basename ${SAMP} _${LIB}_R1.fq.gz)
+        INFOLINE=$(zcat ${SAMP} | head -n 1)
+        INSTRUMENT=`echo ${INFOLINE} | cut -d ':' -f1`
+        INSTRUMENTRUN=`echo ${INFOLINE} | cut -d ':' -f2`
+        FLOWCELL=`echo ${INFOLINE} | cut -d ':' -f3`
+        LANE=`echo ${INFOLINE} | cut -d ':' -f4`
+        INDEX=`echo ${INFOLINE} | cut -d ':' -f10`
 
-                #Now to incorporate this information into the alignment
-                rgid="ID:${instrument}_${instrumentrun}_${flowcell}_${lane}_${index}"
-                rgpl="PL:Illumina"
-                rgpu="PU:${flowcell}_${lane}"
-                rglb="LB:${base}_${lane}"
-                rgsm="SM:${base}"
+        RGID="ID:${INSTRUMENT}_${INSTRUMENTRUN}_${FLOWCELL}_${LANE}_${INDEX}"
+        RGPL="PL:Illumina"
+        RGPU="PU:${FLOWCELL}.${LANE}"
+        RGLB="LB:${BASE}_${LIB}"
+        RGSM="SM:${BASE}"
 
-                #Be explicit with file location for read 2 and the sam file output
-                echo "ALIGNING READS FOR $base LIBRARY: ${lib}..." 
-                time bwa mem -M -R @RG"\t"${rgid}"\t"${rgpl}"\t"${rgpu}"\t"${rglb}"\t"${rgsm} -t 16 \
-                ${ref} ${samp} ${reads}${lib}/${base}_${lib}_R2.fq.gz | samtools sort -@ 64 -O BAM -o ${out}bam/${base}_${lib}.bam
-                echo "FINISHED ALIGNING READS FOR ${base} ${lib}...."
+        printf "BEGAN ALIGNING READS FOR ID:${BASE}, LIB:${LIB} AT "
+        date
+        bwa mem -M -R @RG'\t'$RGID'\t'$RGPL'\t'$RGPU'\t'$RGLB'\t'$RGSM -t 46 $REF $SAMP ${INPUT}${LIB}/${BASE}_${LIB}_R2.fq.gz | samtools sort -@ 46 -o ${OUTPUT}${BASE}.bam
+        printf "FINISHED ALIGNING READS FOR ID:${BASE}, LIB:${LIB} AT "
+        date
+        wait
         done
 done
 ```
-Files were then merged for each of the datasets, the reference sample is the only individual sequenced at two different facilites.  
+Files were then merged for each of the datasets, the reference sample (SP01) is the only individual sequenced at two different facilites.  
 ```
 samtools merge -@ 16 \
     -o ${out}bam/SP01_merged.bam \

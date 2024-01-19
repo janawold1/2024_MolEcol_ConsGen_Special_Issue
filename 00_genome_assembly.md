@@ -60,8 +60,8 @@ done
 **Table 1. Initial assembly statistics:**
 | Read Inputs | Estimated Depth (FLYE) | # Scaffolds | N50 (Mbp) | L50 | Largest Scaffold Size (Mbp) |
 |:-----------:|:----------------------:|:-----------:|:---------:|:---:|:---------------------------:|
-|   Q20, 1kb  |           43           |     692     |  27.4     | XX  |             74.7            |
-|   Q20, 5kb  |           38           |     497     |  24.3     | XX  |             77.6            |
+|   Q20, 1kb  |           43           |     692     |  27.4     | 13  |             74.7            |
+|   Q20, 5kb  |           38           |     497     |  24.3     | 13  |             77.6            |
 |  Q20, 10kb  |           29           |     486     |  24.3     | 14  |             83.6            |
 
 ## Polishing and Scaffolding
@@ -119,11 +119,11 @@ done
 ```
 Finally, assembly quality was assessed using [BUSCO](https://busco.ezlab.org/) v5.4.7 to assess how complete it may be, and [Quast](https://github.com/ablab/quast) v5.2.0 to assess contiguity (Table 2).  
 
-**Table 2. Final assembly summary statistics:**
+**Table 2. Polished assembly summary statistics:**
 | Read Inputs | % Complete BUSCO | % Missing BUSCO | # Scaffolds | N50 (Mbp) | L50 | Largest Scaffold Size (Mbp) | # N's per 100 kbp |
 |:-----------:|:----------------:|:---------------:|:-----------:|:---------:|:---:|:---------------------------:|:-----------------:|
-|   Q20, 1kb  |       XX.X       |       X.X       |     433     |   48.3    |  8  |            100.3            |       25.9        |
-|   Q20, 5kb  |       XX.X       |       X.X       |     XXX     |   XX.X    | XX  |             XX.X            |        X.X        |
+|   Q20, 1kb  |       97.7       |       1.9       |     433     |   48.3    |  8  |            100.3            |       25.9        |
+|   Q20, 5kb  |       97.7       |       1.9       |     298     |   41.3    |  9  |            103.4            |       17.3        |
 |  Q20, 10kb  |       97.5       |       2.1       |     283     |   35.4    | 10  |             86.9            |        6.2        |
 
 
@@ -133,7 +133,7 @@ In the end, the genome assembly generated using a minimum read length of 5kb was
 
 <figure>
         <div style="text-align: center;">
-        <img src="https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/Figures/Katie_q20_5kb_longstitch1_racon2_to_CommonTern.png"
+        <img src="https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/Figures/Katie_q20_5kb_longstitch2_to_CommonTern.png"
              alt="Tara iti genome aligned against the common tern genome for comparing synteny and contiguity"
              width="600" height="600">
         </div>
@@ -143,4 +143,16 @@ In the end, the genome assembly generated using a minimum read length of 5kb was
 Unsurprisingly, the *de novo* tara iti assembly was not chromosomally resolved. Because common terns and fairy terns are relatively related species and demonstrate high synteny, we used the common tern as a reference to scaffold the tara iti assembly with [RagTag](https://github.com/malonge/RagTag) vX.X to maximise our ability to call structural variants.  
 ```
 ragtag.py scaffold -o reference/Katie_ragtag/ reference/common_tern.fasta reference/Katie.fasta
+```
+**Table 3. Final assembly summary statistics:**
+| Read Inputs | % Complete BUSCO | % Missing BUSCO | # Scaffolds | N50 (Mbp) | L50 | Largest Scaffold Size (Mbp) | # N's per 100 kbp |
+|:-----------:|:----------------:|:---------------:|:-----------:|:---------:|:---:|:---------------------------:|:-----------------:|
+|   Q20, 5kb  |       97.7       |       1.9       |     298     |    84.9   |  5  |            219.3            |       18.7        |
+
+## Not sure if this is the case??? Should try with and without? Ask Annabel and Nat???
+It is better for some downstream analyses (e.g., demographic analyses, load estimates) to mask repetitive portions of the genome. A `GFF` file for these regions was generated with [RepeatMaster](https://github.com/rmhubley/RepeatMasker) v4.1.0 and converted to `BED` format with [BEDtools](https://github.com/arq5x/bedtools2) v2.30.0 to exclude these sites.  
+```
+RepeatMasker -pa 16 -gff -xsmall -species chicken Katie_5kb_ragtag.fa
+bedtools sort -i Katie_5kb_ragtag_repeat.gff > Katie_5kb_ragtag_repeat.bed
+bedtools merge -i Katie_5kb_ragtag_repeat.bed > Katie_5kb_ragtag_repeat.merged.bed
 ```
