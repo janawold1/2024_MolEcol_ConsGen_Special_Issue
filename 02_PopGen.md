@@ -1,12 +1,20 @@
 # Population genomics with ANGSD
-[ANGSDv0.940-dirty](https://bioconda.github.io/recipes/angsd/README.html?highlight=angsd) (htslib:1.18) and ngsTools were used to estimate summary statistics for the *de novo* tara iti assembly and scaffolded as per the common tern reference (see [01_read_QC_and_alignment.md](github.com/janawold1/2023_EVOLAPP_Special_Issue/blob/main/01_read_QC_and_alignment.md) for details). The methods implemented below were modified from a helpful wiki provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md).  
+[ANGSDv0.935](https://bioconda.github.io/recipes/angsd/README.html?highlight=angsd) and ngsTools were used to estimate summary statistics for Australian fairy tern (*Sternual nereis nereis*) sampled from Western Australia and tara iti (*S. nereis davisae*) from Northland, NZ. The methods implemented below were modified from a helpful wiki provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md).  
 
-Before progressing with analyses, an initial look at the distribution of quality scores and per-site depth on a global and individual-based basis. This was repeated alignments to all three reference geomes (Common tern, Tara iti scaffolded using common tern, and the unscaffolded tara iti reference). Sex chromosomes were excluded for alignments to the scaffolded assemblies (i.e., common tern, tara iti scaffolded using common tern). All analyses were performed under the SAMtools genotype likelihood model `-GL 1` unless otherwise denoted.  
+Before progressing with analyses, an initial look at the distribution of quality scores and per-site depth on a global and individual-based basis. PCR duplicates were marked and sex chromosomes were excluded for SNP-based population analyses.  
 ```
-angsd -P 8 -b GLOBAL.list -ref $ref -out qc/GLOBAL.qc \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 \
-    -trim 0 -C 50 -baq 1 -minMapQ 15 -doQsdist 1 -doDepth 1 \
-    -doCounts 1 -maxDepth 1000
+ls ${DIR}*_markdup_autosomes.bam > ${ANGSD}GLOBAL.list
+ls ${DIR}{SND,SP,TI}*_markdup_autosomes.bam > ${ANGSD}TI.list
+ls ${DIR}AU*_markdup_autosomes.bam > ${ANGSD}AU.list
+
+REF=${DIR}Katies_genome/Katie_5kb_ragtag.fa
+
+for POP in GLOBAL AU TI
+    do
+    angsd -P 8 -b ${ANGSD}${POP}.list -ref $REF -out ${ANGSD}qc/${POP}.qc \
+        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+        -minMapQ 13 -doQsdist 1 -doDepth 1 -doCounts 1 -maxDepth 800
+done
 ```
 Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md), the distributions of these sites were visualised with `Rscript ~/ngsTools/Scripts/plotQC.R GLOBAL.qc` and meaningful filtering thresholds were identified. Below is a table outlining filtering thresholds for subsequent population analyses.
 
@@ -16,8 +24,11 @@ Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blo
 |      Tara iti       |     20     |    20   |     114     |     350     |        19         |
 |       Global        |     20     |    20   |     300     |     630     |        38         |
 
-A missingness threshold of 0% or 10% were used when appropriate for all subsequent analyses. Below is code run for analyses performed on alignments to the tara iti reference scaffolded using the common tern assembly. All analyses were performed in a similar manner, with the variables adjusted as per the table above.  
-## Removing coding Regions
+A missingness threshold of 0% or 10% were used when appropriate for all subsequent analyses. Below is code run for analyses performed on alignments to the tara iti reference scaffolded using the common tern assembly. All analyses for each group were performed in a similar manner. Quality thresholds were adjusted as per the table above.  
+
+Before progressing further, the SAMtools genotype likelihood model `-GL 1` and GATK genotype likelihood model `-GL 2` were trialled to see if there were differences.
+
+## Excluding coding Regions
 [BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.31.0 was used to find the complement of the UCSC annotation and exclude coding regions of the genome. An additional 1kb of sequence on either side of annotations were included to reduce linkage.  
 
 First, the annotations for autosomal chromosomes were extracted and the window size for these regions increased by 1kb on either side for each annotation file.  
@@ -63,30 +74,14 @@ angsd sites index TI_scaffolded_neutral_regions.bed
 
 We also extracted the autosomoal chromosomes from the common tern assembly, and renamed them with the same names in the tara iti reference assembly. This was so we could polarize the site frequency spectrum with common tern as the ancestral state. 
 
-# Test for Sex Specific differences?
+### Test for Sex Specific differences?
 
-## Remember ANGSD method of reconstructing outgroup when TI ONT assembly complete
+## Common tern ancestral alleles
+It is useful to have the ancestral state for some of the analyses below. To this end, we aligned short reads from the common tern genome assembly to the tara iti genome and converted to a Fasta file. We opted this approach over using the common tern genome assembly directly as the chromosomes had different sizes and were not compatible with ANGSD methods ([brief discussion here](https://www.biostars.org/p/298013/)). This also has the benefit of ensuring that comparisons are made between the same regions, regardless of potential rearrangements. The reads for common tern were trimmed, aligned, and duplicates marked in the same manner as the fairy tern population short-reads. Would only work when using a file as input to command as below.  
 ```
-faSomeRecords common_tern.fa common_tern_autosomes.bed common_tern_autosomes.fasta
+ls ${DIR}bSteHir1_markdup_autosomes.bam > ${ANGSD}CT.list
 
-awk '{print $1"\t"$1"_RagTag"} common_tern_autosomes.bed > renames.txt
-
-while read -r line
-    do
-    old=$(echo $line | awk '{print $1}')
-    new=$(echo $line | awk '{print $2}')
-    echo "RENAMING $old TO $new"
-    sed -i "s/$old/$new/g" common_tern_autosomes.fasta
-done < renames.txt
-```
-Once the autosomes were extracted and renamed, the common tern reference had to be subsetted to be usable for SFS analyses with ANGSD and GADMA. To ensure the appropriate regions of the genome were included for polarising the SFS, the common tern assembly was aligned to the scaffolded tara iti reference with [minimap2](https://github.com/lh3/minimap2) v2.26-r1175. This is by no means a perfect solution, but helped with maximising the likelihood that the appropriate region from the common tern assembly was used.  
-```
-minimap2 -x asm5 TI_scaffolded_as_CT.fasta.gz common_tern_autosomes.fasta.gz -a -o tern2tern.sam
-samtools view -F tern2tern.sam | samtools fasta > common_tern_subset.fasta
-```
-```
-bgzip common_tern_subset.fasta
-samtools faidx common_tern_subset.fasta.gz
+angsd -P 16 -doFasta 1 -doCounts 1 -out ${ANGSD}bSteHir1_ancestral -b ${ANGSD}CT.list
 ```
 ## Inbreeding Estimates
 ### F statistics
@@ -188,13 +183,13 @@ legend("topright", title="Gaussian groups", legend=c("Short","Medium","Long"), l
 ```
 
 ### Global Heterozygosity
-Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Essentially, this estimate is a proportion of heterozygous genotypes / genome size (excluding regions of the genome with low confidence). Unlike other runs of ANGSD, individual CRAMs are used to estimate hetereozygosity, which is simply second value in the SFS/AFS.  
+Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Essentially, this estimate is a proportion of heterozygous genotypes / genome size (excluding regions of the genome with low confidence). Unlike other runs of ANGSD, individual BAMs are used to estimate hetereozygosity, which is simply second value in the SFS/AFS.  
 ```
-for cram in ${dir}*_nodup_autosomes.cram
+for BAM in ${DIR}*_markdup_autosomes.bam
     do
-    base=$(basename $cram _nodup_autosomes.cram)
-    angsd -i $cram -anc $ref -out heterozygosity/${base} -dosaf 1 -GL 1 -doCounts 1
-    realSFS -fold 1 heterozygosity/${base}.saf.idx > heterozygosity/${base}_est.ml
+    BASE=$(basename $BAM _markdup_autosomes.bam)
+    angsd -i $BAM -anc $ANC -ref $REF -out ${ANGSD}heterozygosity/${BASE} -dosaf 1 -GL 1 -doCounts 1
+    realSFS -fold 0 ${ANGSD}heterozygosity/${BASE}.saf.idx > heterozygosity/${BASE}_est.ml
 done
 ```
 
@@ -202,7 +197,7 @@ done
 ### PCA
 To visualise population structure using a PCA, we first ran ANGSD using the `-doGeno 32` and `-doPost 1` options.  
 ```
-angsd -P 8 -b GLOBAL.bamlist -ref $ref -out structure_PCA/GLOBAL_noMiss -sites ${region} \
+angsd -P 16 -b ${ANGSD}GLOBAL.list -ref $REF -out ${ANGSD}structure_PCA/GLOBAL_noMiss \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 32 -doPost 1
@@ -223,7 +218,7 @@ Rscript plotPCA.R -i structure_PCA/GLOBAL_noMiss.covar -c 1-2 -a structure_PCA/G
 ### MDS
 To construct a MDS for fairy tern populations, we first ran ANGSD as below. Notably, the only change is the `-doGeno 8` flag.  
 ```
-angsd -P 8 -b GLOBAL.list -ref $ref -out structure_MDS/GLOBAL -sites ${region} \
+angsd -P 16 -b GLOBAL.list -ref $REF -out ${ANGSD}structure_MDS/GLOBAL \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 8 -doPost 1
@@ -233,62 +228,62 @@ This command not only generates the required `*.mafs.gz`, but also the `*.geno.g
 NSITES=$(zcat GLOBAL.mafs.gz | tail -n +2 | wc -l)
 echo $NSITES
 
-ngsDist -verbose 1 -geno distance/GLOBAL.geno.gz -probs \
-    -n_ind 38 -n_sites $NSITES -labels pops.label -o distance/GLOBAL.dist
+ngsDist -verbose 1 -geno ${ANGSD}distance/GLOBAL.geno.gz -probs \
+    -n_ind 38 -n_sites $NSITES -labels ${ANGSD}pops.label -o ${ANGSD}distance/GLOBAL.dist
 ```
 Extract and construct MDS.  
 ```
-tail -n +3 distance/GLOBAL.dist | Rscript --vanilla --slave getMDS.R \
-    --no_header --data_symm -n 4 -m "mds" -o distance/GLOBAL.mds
+tail -n +3 ${ANGSD}distance/GLOBAL.dist | Rscript --vanilla --slave getMDS.R \
+    --no_header --data_symm -n 4 -m "mds" -o ${ANGSD}distance/GLOBAL.mds
 
 head distance/GLOBAL.mds
 ```
 And finally plot the MDS.  
 ```
-Rscript plotMDS.R -i distance/GLOBAL.mds -c 1-2 -a structure/GLOBAL_noMiss.clst -o distance/GLOBAL_mds.pdf
+Rscript plotMDS.R -i ${ANGSD}distance/GLOBAL.mds -c 1-2 -a ${ANGSD}structure/GLOBAL_noMiss.clst -o ${ANGSD}distance/GLOBAL_mds.pdf
 ```
 ### Population Structure with Inbreeding
 Initial inbreeding estimates for tara iti indicate that the population is likely out of hardy-weinburg equilibrium (HWE). To account for this, relative inbreeding levels were incorporated into assessments of population structure.  
 
 ### Geographic Population Structure (GPS)
-Analyses of population structure using PCAs have been shown to exhibit bias ([Elhaik et al 2022](https://doi.org/10.1038/ncomms4513)). Admixture based appraoches, like those implemented in [GPS](https://github.com/arash-darzian/Geographic_Population_Structure_GPS/tree/main) have been proposed. This program leverages XXX may not want to use as it has a strong aDNA focus XXX
+Analyses of population structure using PCAs have been shown to exhibit bias ([Elhaik et al 2022](https://doi.org/10.1038/ncomms4513)). Admixture based appraoches, like those implemented in [GPS](https://github.com/arash-darzian/Geographic_Population_Structure_GPS/tree/main) have been proposed. This program leverages XXX may not want to use as it has a strong aDNA focus XXX.
 
 ## Summary Statistics
 ### Site Frequency Spectrum
 The intermediate site frequency spectrum estimated in the example above were used to generate SFS files with realSFS. Here, we are using the common tern as the ancestral state.  
 ```
-anc=reference/common_tern_autosomes.fasta.gz
+ANC=${ANGSD}bSteHir1_ancestral.fasta
 region=TI_scaffolded_neutral_regions.bed
 for POP in AU TI
     do
-    angsd -P 8 -b ${POP}.list -ref $ref -anc $ref -out sfs/${POP}_fold -sites ${region} \
+    angsd -P 8 -b ${ANGSD}${POP}.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/${POP} \
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
         -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
         -GL 1 -doSaf 1
 done
 
-angsd -P 8 -b GLOBAL.list -ref $ref -anc $anc -out sfs/GLOBAL -sites ${region} \
+angsd -P 8 -b ${ANGSD}GLOBAL.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/GLOBAL \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doSaf 1
 ```
 
 ```
-realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/AU_fold.saf.idx > sfs/AU_fold_realSFS_folded_100boots.sfs
+realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx > ${ANGSD}gatk/sfs/AU_fold_realSFS_unfolded_100boots.sfs
 
-realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/TI_fold.saf.idx > sfs/TI_fold_realSFS_folded_100boots.sfs
+realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/TI_unfolded.saf.idx > ${ANGSD}gatk/sfs/TI_fold_realSFS_unfolded_100boots.sfs
 
-realSFS -fold 1 -bootstrap 100 -tole 1e-6 sfs/AU_fold.saf.idx sfs/TI_fold.saf.idx > sfs/total_fold_realSFS_folded_100boots.sfs
+realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx ${ANGSD}gatk/sfs/TI_fold.saf.idx > ${ANGSD}gatk/sfs/total_fold_realSFS_unfolded_100boots.sfs
 ```
 ## Theta Statistics
 Using the ANGSD `-doSaf 1` and realSFS outputs, theta neutrality statistics were estimated using realSFS and associated thetaStat programmes.  
 ```
 for POP in AU TI total
     do
-    tail -n1 sfs/${POP}_fold_realSFS_folded_100boots.sfs > diversity/${POP}_fold.sfs
-    realSFS saf2theta sfs/${POP}_fold.saf.idx -outname diversity/${POP}_fold -sfs diversity/${POP}_fold.sfs -fold 1
-    thetaStat do_stat diversity/${POP}_fold.thetas.idx
-    thetaStat do_stat diversity/${POP}_fold.thetas.idx -win 50000 -step 10000 -outnames diversity/${POP}_fold_thetasWindow
+    tail -n1 ${ANGSD}gatk/sfs/${POP}_unfold_realSFS_unfolded_100boots.sfs > ${ANGSD}gatk/diversity/${POP}_unfold.sfs
+    realSFS saf2theta sfs/${POP}_unfold.saf.idx -outname diversity/${POP}_fold -sfs diversity/${POP}_unfold.sfs -fold 0
+    thetaStat do_stat ${ANGSD}gatk/diversity/${POP}_unfold.thetas.idx
+    thetaStat do_stat ${ANGSD}gatk/diversity/${POP}_unfold.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}gatk/diversity/${POP}_unfold_thetasWindow
 done
 ```
 Only the Watterson's Theta and Tajima's D can be estimated with a folded SFS. The mean value of Tajima's D was estimated by the below.  

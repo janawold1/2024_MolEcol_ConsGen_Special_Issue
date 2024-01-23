@@ -148,11 +148,3 @@ ragtag.py scaffold -o reference/Katie_ragtag/ reference/common_tern.fasta refere
 | Read Inputs | % Complete BUSCO | % Missing BUSCO | # Scaffolds | N50 (Mbp) | L50 | Largest Scaffold Size (Mbp) | # N's per 100 kbp |
 |:-----------:|:----------------:|:---------------:|:-----------:|:---------:|:---:|:---------------------------:|:-----------------:|
 |   Q20, 5kb  |       97.7       |       1.9       |     298     |    84.9   |  5  |            219.3            |       18.7        |
-
-## Not sure if this is the case??? Should try with and without? Ask Annabel and Nat???
-It is better for some downstream analyses (e.g., demographic analyses, load estimates) to mask repetitive portions of the genome. A `GFF` file for these regions was generated with [RepeatMaster](https://github.com/rmhubley/RepeatMasker) v4.1.0 and converted to `BED` format with [BEDtools](https://github.com/arq5x/bedtools2) v2.30.0 to exclude these sites.  
-```
-RepeatMasker -pa 16 -gff -xsmall -species chicken Katie_5kb_ragtag.fa
-bedtools sort -i Katie_5kb_ragtag_repeat.gff > Katie_5kb_ragtag_repeat.bed
-bedtools merge -i Katie_5kb_ragtag_repeat.bed > Katie_5kb_ragtag_repeat.merged.bed
-```
