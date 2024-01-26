@@ -147,43 +147,30 @@ for bam in *_rohan.bam
     rohan --size 50000 --rohmu 4.6e-9 -t 16 --tstv 2.36 -o output/${base} $ref $bam
 done
 ```
-#### ROH-Size Clustering
-Run in R
-Create a one-column file (e.g., scat_rohs.txt) with ROH sizes across all samples
-These ROH sizes were obtained from above after excluding microchromosomal scaffolds
-```
-library(mclust)
-scat_ROH<-read.csv("~/scat_rohs.txt", header = F)
-test<-Mclust(scat_ROH)
-scatbic<-mclustBIC(scat_ROH)
-summary(scatbic, parameter=TRUE)
-plot(scatbic)
-summary(test, parameter=TRUE)
-
-x<-seq(0,8000000, length=1000)
-scag1<-dnorm(x, mean=test$parameters$mean[1], sd=sqrt(test$parameters$variance$sigmasq[1]))
-scag2<-dnorm(x, mean=test$parameters$mean[2], sd=sqrt(test$parameters$variance$sigmasq[2]))
-scag3<-dnorm(x, mean=test$parameters$mean[3], sd=sqrt(test$parameters$variance$sigmasq[3]))
-hist(test$data, breaks=132, main="Distribution of ROH for inbred S. catenatus", xlab="Number of base pairs")
-lines(x, (scag1*1800000000), col="red")
-lines(x, (scag2*1800000000), col="blue")
-lines(x, (scag3*1800000000), col="green")
-legend("topright", title="Gaussian groups", legend=c("Short","Medium","Long"), lty=c(1,1,1), col=c("red", "blue", "green"))
-
-hist(test$data, breaks=132, main="Distribution of ROH for S. catenatus", xlab="Number of base pairs")
-abline(v=200000, lty=5, col="red")
-abline(v=700000, lty=4, col="blue")
-legend("topright", title="ROH boundries", legend=c("Short-Medium break","Medium-Long break"), lty=c(5,4), col=c("red", "blue"))
-
-plot(x,scag1, col="red", type="l", main="ROH length distributions for S. catenatus",
-     xlab="Number of base pairs", ylab="", yaxt="n")
-lines(x, (scag2), col="blue")
-lines(x, (scag3), col="green")
-legend("topright", title="Gaussian groups", legend=c("Short","Medium","Long"), lty=c(1,1,1), col=c("red", "blue", "green"))
-```
 
 ### Global Heterozygosity
 Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Essentially, this estimate is a proportion of heterozygous genotypes / genome size (excluding regions of the genome with low confidence). Unlike other runs of ANGSD, individual BAMs are used to estimate hetereozygosity, which is simply second value in the SFS/AFS.  
+
+For other programs and to estimate a Ts/Tv rate for Rohan, a BCF was produced using ANGSD.  
+```
+angsd -P 8 -b GLOBAL.list -ref $ref -out ${ANGSD}samtools/genotypes/global_SAMtools_genotypes -uniqueOnly 1 \
+    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
+    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 1 \
+    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
+
+angsd -P 8 -b GLOBAL.list -ref $ref -out ${ANGSD}gatk/genotypes/global_GATK_genotypes -uniqueOnly 1 \
+    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
+    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 2 \
+    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
+
+vcftools --vcf ${ANGSD}gatk/genotypes/global_GATK_genotypes \
+    --TsTv-sumamry \
+    --out ${ANGSD}gatk/genotypes/global_GATK_genotypes
+
+vcftools --vcf ${ANGSD}samtools/genotypes/global_SAMtools_genotypes \
+    --TsTv-sumamry \
+    --out ${ANGSD}samtools/genotypes/global_SAMtools_genotypes
+```
 ```
 for SAMP in ${BAM}*_markdup_autosomes.bam
     do
@@ -209,13 +196,14 @@ for tool in gatk samtools
         do
         BASE=$(basename $SAMP _est.ml)
         HET=$(awk '{print $2/1088797119}' $SAMP)
-        printf "$BASE\t$HET\n" >> ${ANGSD}${tool}/heterozygosity/individual_het.tsv
+        printf "$BASE\t$HET\t$tool\n" >> ${ANGSD}${tool}/heterozygosity/individual_het.tsv
     done
 done
 
-printf "Sample\tGATK_het\tSAMtools_het\n" > ${ANGSD}heterozygosity_summary.tsv 
+printf "Sample\tHeterozygosity\tTool\n" > ${ANGSD}heterozygosity_summary.tsv 
 
-join <(sort ${ANGSD}gatk/heterozygosity/individual_het.tsv ) <(sort ${ANGSD}samtools/heterozygosity/individual_het.tsv ) | tr ' ' '\t' >> ${ANGSD}heterozygosity_summary.tsv
+cat ${ANGSD}gatk/heterozygosity/individual_het.tsv >> ${ANGSD}heterozygosity_summary.tsv
+cat ${ANGSD}samtools/heterozygosity/individual_het.tsv >> ${ANGSD}heterozygosity_summary.tsv
 ```
 
 ## Population Structure
@@ -343,17 +331,4 @@ angsd -P 8 -b AU.list -ref ${ref} -anc ${ref} -out diversity/AU_folded -sites ${
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
     -GL 1 -doSaf 1 -doThetas 1 -pest sfs/AU_fold.sfs
-```
-## Generating VCF
-For other programs and to estimate a Ts/Tv rate for Rohan, a BCF was produced using ANGSD.  
-```
-angsd -P 8 -b GLOBAL.list -ref $ref -out angsd/samtools/genotypes/global_SAMtools_genotypes -uniqueOnly 1 \
-    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
-    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 1 \
-    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
-
-angsd -P 8 -b GLOBAL.list -ref $ref -out angsd/gatk/genotypes/global_GATK_genotypes -uniqueOnly 1 \
-    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
-    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 2 \
-    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
 ```

@@ -12,6 +12,11 @@ while read -r BAM
     date
 done < sample_list.txt
 ```
+Once initial calls were made, the file was merged and filtered for two different minimum sizes.  
+```
+delly merge -o delly/01_raw_merged_calls.bcf delly/raw_calls/*.bcf
+```
+
 The raw calls initially comprised of:  
 |    SV Type   | Total Number |
 | ------------ | ------------ |
@@ -22,11 +27,6 @@ The raw calls initially comprised of:
 |  Inversions  |     1,558    |
 
 ### Delly Filtering
-Once initial calls were made, the file was merged and filtered for two different minimum sizes.  
-```
-delly merge -o delly/01_raw_merged_calls.bcf delly/raw_calls/*.bcf
-```
-
 These files were used to filter different SV types for quality. This is because Delly is best calling Inversions and Duplications greater than 300bp in length and INDELs greater than 50bp in length. SVs of different types were required to `PASS` all Delly filters and have `PRECISCE` breakpoints.  
 ```
 bcftools view -i 'FILTER=="PASS" & INFO/PRECISE==1 & SVTYPE!="BND"' \
