@@ -11,18 +11,18 @@ REF=${DIR}Katies_genome/Katie_5kb_ragtag.fa
 
 for POP in GLOBAL AU TI
     do
-    angsd -P 8 -b ${ANGSD}${POP}.list -ref $REF -out ${ANGSD}qc/${POP}.qc \
+    angsd -P 16 -b ${ANGSD}${POP}.list -ref $REF -out ${ANGSD}qc/${POP}.qc \
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-        -minMapQ 13 -doQsdist 1 -doDepth 1 -doCounts 1 -maxDepth 800
+        -minMapQ 20 -doQsdist 1 -doDepth 1 -doCounts 1 -maxDepth 800
 done
 ```
 Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md), the distributions of these sites were visualised with `Rscript ~/ngsTools/Scripts/plotQC.R GLOBAL.qc` and meaningful filtering thresholds were identified. Below is a table outlining filtering thresholds for subsequent population analyses.
 
 |      Population     |minimum mapQ|minimum Q|minimum depth|maximum depth|minimum individuals|
 | ------------------- | ---------- | ------- | ----------- | ----------- | ----------------- |
-|Australian Fairy Tern|     20     |    20   |     114     |     350     |        19         |
-|      Tara iti       |     20     |    20   |     114     |     350     |        19         |
-|       Global        |     20     |    20   |     300     |     630     |        38         |
+|Australian Fairy Tern|     20     |    20   |     170     |     360     |        19         |
+|      Tara iti       |     20     |    20   |     100     |     280     |        18         |
+|       Global        |     20     |    20   |     300     |     740     |        37         |
 
 A missingness threshold of 0% or 10% were used when appropriate for all subsequent analyses. Below is code run for analyses performed on alignments to the tara iti reference scaffolded using the common tern assembly. All analyses for each group were performed in a similar manner. Quality thresholds were adjusted as per the table above.  
 
@@ -87,19 +87,19 @@ angsd -P 16 -doFasta 1 -doCounts 1 -out ${ANGSD}bSteHir1_ancestral -b ${ANGSD}CT
 ### F statistics
 To estimate relative levels of inbreeding and account for the high likelihood that tara iti do not conform to Hardy-Weinberg Equilibrium (HWE), we first generated population specific genotype likelihoods for input into [ngsF](https://github.com/mfumagalli/ngsTools) v1.2.0-STD. The outputs of these analyses can also be used as a prior for populations that are not in hardy-weinburg equilibrium (HWE).  
 ```
-angsd -P 8 -b AU.list -ref $ref -out inbreeding/AU -sites ${region} \
+angsd -P 16 -b AU.list -ref $REF -out inbreeding/AU \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 350 -doCounts 1 \
+    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 
-angsd -P 8 -b TI.list -ref $ref -out inbreeding/TI -sites ${region} \
+angsd -P 16 -b TI.list -ref $REF -out inbreeding/TI -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
+    -minMapQ 20 -minQ 20 -minInd 18 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 
-angsd -P 8 -b GLOBAL.list -ref $ref -out inbreeding/GLOBAL -sites ${region} \
+angsd -P 16 -b GLOBAL.list -ref $REF -out inbreeding/GLOBAL -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
+    -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 650 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 ```
 This left 980,578 sites in the `AU` dataset, 297,787 sites in the `TI` dataset, and 1,665,527 sites in the `GLOBAL` dataset upon the completion of ANGSD. Next, `ngsF` was used to estimate inbreeding. First, an initial search was performed. The below was perfomed for each of the `AU`, `TI`, and `GLOBAL` data sets upon the completion of ANGSD.  
@@ -185,12 +185,37 @@ legend("topright", title="Gaussian groups", legend=c("Short","Medium","Long"), l
 ### Global Heterozygosity
 Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Essentially, this estimate is a proportion of heterozygous genotypes / genome size (excluding regions of the genome with low confidence). Unlike other runs of ANGSD, individual BAMs are used to estimate hetereozygosity, which is simply second value in the SFS/AFS.  
 ```
-for BAM in ${DIR}*_markdup_autosomes.bam
+for SAMP in ${BAM}*_markdup_autosomes.bam
     do
-    BASE=$(basename $BAM _markdup_autosomes.bam)
-    angsd -i $BAM -anc $ANC -ref $REF -out ${ANGSD}heterozygosity/${BASE} -dosaf 1 -GL 1 -doCounts 1
-    realSFS -fold 0 ${ANGSD}heterozygosity/${BASE}.saf.idx > heterozygosity/${BASE}_est.ml
+    BASE=$(basename $SAMP _markdup_autosomes.bam)
+    angsd -i $SAMP -anc $ANC -ref $REF -out ${ANGSD}heterozygosity/${BASE} -dosaf 1 -GL 1 -doCounts 1
+    realSFS ${ANGSD}heterozygosity/${BASE}.saf.idx > heterozygosity/${BASE}_est.ml
 done
+```
+Once the SFS was estimated for each individual, the number of sites was estimated from the sum of all scaffold sizes included in the bam file.
+```
+
+```
+Individual heterozygosity was then output to a file.
+```
+SIZE=$(awk '{sum+=$3}; END {print sum}' Katie_autosomes2.bed)
+echo $SIZE
+
+
+
+for tool in gatk samtools
+    do
+    for SAMP in ${ANGSD}${tool}/heterozygosity/*_est.ml
+        do
+        BASE=$(basename $SAMP _est.ml)
+        HET=$(awk '{print $2/1088797119}' $SAMP)
+        printf "$BASE\t$HET\n" >> ${ANGSD}${tool}/heterozygosity/individual_het.tsv
+    done
+done
+
+printf "Sample\tGATK_het\tSAMtools_het\n" > ${ANGSD}heterozygosity_summary.tsv 
+
+join <(sort ${ANGSD}gatk/heterozygosity/individual_het.tsv ) <(sort ${ANGSD}samtools/heterozygosity/individual_het.tsv ) | tr ' ' '\t' >> ${ANGSD}heterozygosity_summary.tsv
 ```
 
 ## Population Structure
@@ -254,13 +279,16 @@ The intermediate site frequency spectrum estimated in the example above were use
 ```
 ANC=${ANGSD}bSteHir1_ancestral.fasta
 region=TI_scaffolded_neutral_regions.bed
-for POP in AU TI
-    do
-    angsd -P 8 -b ${ANGSD}${POP}.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/${POP} \
-        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-        -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
-        -GL 1 -doSaf 1
-done
+
+angsd -P 16 -b ${ANGSD}AU.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/AU \
+    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
+    -GL 2 -doSaf 1
+
+angsd -P 16 -b ${ANGSD}TI.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/TI \
+    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+    -minMapQ 20 -minQ20 -minInd 18 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
+    -GL 2 -doSaf 1
 
 angsd -P 8 -b ${ANGSD}GLOBAL.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/GLOBAL \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
@@ -269,11 +297,11 @@ angsd -P 8 -b ${ANGSD}GLOBAL.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/GLOB
 ```
 
 ```
-realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx > ${ANGSD}gatk/sfs/AU_fold_realSFS_unfolded_100boots.sfs
+realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx > ${ANGSD}gatk/sfs/AU_realSFS_unfolded_100boots.sfs
 
-realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/TI_unfolded.saf.idx > ${ANGSD}gatk/sfs/TI_fold_realSFS_unfolded_100boots.sfs
+realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/TI_unfolded.saf.idx > ${ANGSD}gatk/sfs/TI_realSFS_unfolded_100boots.sfs
 
-realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx ${ANGSD}gatk/sfs/TI_fold.saf.idx > ${ANGSD}gatk/sfs/total_fold_realSFS_unfolded_100boots.sfs
+realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx ${ANGSD}gatk/sfs/TI_fold.saf.idx > ${ANGSD}gatk/sfs/GLOBAL_realSFS_unfolded_100boots.sfs
 ```
 ## Theta Statistics
 Using the ANGSD `-doSaf 1` and realSFS outputs, theta neutrality statistics were estimated using realSFS and associated thetaStat programmes.  
@@ -319,13 +347,13 @@ angsd -P 8 -b AU.list -ref ${ref} -anc ${ref} -out diversity/AU_folded -sites ${
 ## Generating VCF
 For other programs and to estimate a Ts/Tv rate for Rohan, a BCF was produced using ANGSD.  
 ```
-angsd -P 8 -b GLOBAL.list -ref $ref -out angsd/genotypes/global_GATK_genotypes -uniqueOnly 1 \
-    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
-    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 2 \
-    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
-
-angsd -P 8 -b GLOBAL.list -ref $ref -out angsd/genotypes/global_samtools_genotypes -uniqueOnly 1 \
+angsd -P 8 -b GLOBAL.list -ref $ref -out angsd/samtools/genotypes/global_SAMtools_genotypes -uniqueOnly 1 \
     -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
     -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 1 \
+    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
+
+angsd -P 8 -b GLOBAL.list -ref $ref -out angsd/gatk/genotypes/global_GATK_genotypes -uniqueOnly 1 \
+    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
+    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 2 \
     -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
 ```

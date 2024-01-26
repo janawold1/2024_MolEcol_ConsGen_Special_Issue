@@ -2,12 +2,15 @@
 ## Delly Discovery
 SV discovery with common tern and scaffolded tara iti assemblies
 ```
-for cram in ${dir}*_nodup_autosomes.cram
+while read -r BAM
     do
-    base=$(basename ${cram} _nodup_autosomes.cram)
-    printf "\nRUNNING DELLY ${base}\n"
-    delly call -g ${ref} -o delly/raw_calls/${base}.bcf ${cram}
-done
+    BASE=$(basename ${BAM} _markdup_autosomes.cram)
+    printf "BEGAN RUNNING DELLY FOR ${BASE} AT "
+    date
+    delly call -g ${REF} -o delly/raw_calls/${BASE}.bcf ${BAM}
+    printf "FINISHED AT "
+    date
+done < sample_list.txt
 ```
 The raw calls initially comprised of:  
 |    SV Type   | Total Number |
@@ -33,22 +36,17 @@ These final SVs were then merged with the other datasets and used as input into 
 ## Manta Discovery
 [Manta](https://github.com/Illumina/manta) v1.6.0 was used to call SVs for Australian fairy tern and tara iti. Three samples had to be excluded for Manta to run, AU13, TI06, TI34 & TI35. The errors indicated issues with the proportion of reads and read depth statistics. Each chromosome was called independently with the `--callRegions` flag to save computational resource and increase efficiency. Running Manta is relatively simple, with the initial configuration setup as per:
 ```
-ref=/media/jana/BigData/tara_iti_publication/reference/TI_scaffolded_as_CT.fasta.gz
-out=/media/jana/BigData/tara_iti_publication/manta/
-
-configManta.py --referenceFasta ${ref} --runDir ${out} --callRegions ${chr} \
---bam AU01_nodup_autosomes.cram --bam AU03_nodup_autosomes.cram --bam AU04_nodup_autosomes.cram \
---bam AU06_nodup_autosomes.cram --bam AU08_nodup_autosomes.cram --bam AU09_nodup_autosomes.cram \
---bam AU14_nodup_autosomes.cram --bam AU17_nodup_autosomes.cram --bam AU20_nodup_autosomes.cram \
---bam AU21_nodup_autosomes.cram --bam AU23_nodup_autosomes.cram --bam AU24_nodup_autosomes.cram \
---bam AU25_nodup_autosomes.cram --bam AU27_nodup_autosomes.cram --bam AU28_nodup_autosomes.cram \
---bam AU29_nodup_autosomes.cram --bam AU30_nodup_autosomes.cram --bam AU33_nodup_autosomes.cram \
---bam SND04_nodup_autosomes.cram --bam SND05_nodup_autosomes.cram --bam SND06_nodup_autosomes.cram \
---bam SND11_nodup_autosomes.cram --bam SND15_nodup_autosomes.cram --bam SP01_nodup_autosomes.cram \
---bam SP02_nodup_autosomes.cram --bam SP03_nodup_autosomes.cram --bam SP07_nodup_autosomes.cram \
---bam TI21_nodup_autosomes.cram --bam TI22_nodup_autosomes.cram --bam TI36_nodup_autosomes.cram \
---bam TI37_nodup_autosomes.cram --bam TI38_nodup_autosomes.cram --bam TI39_nodup_autosomes.cram \
---bam TI40_nodup_autosomes.cram --bam TI41_nodup_autosomes.cram
+configManta.py --referenceFasta $REF --runDir $DIR \
+        --bam AU01_markdup_autosomes.bam --bam AU03_markdup_autosomes.bam --bam AU04_markdup_autosomes.bam --bam AU06_markdup_autosomes.bam \
+        --bam AU08_markdup_autosomes.bam --bam AU09_markdup_autosomes.bam --bam AU13_markdup_autosomes.bam --bam AU14_markdup_autosomes.bam \
+        --bam AU17_markdup_autosomes.bam --bam AU20_markdup_autosomes.bam --bam AU21_markdup_autosomes.bam --bam AU23_markdup_autosomes.bam \
+        --bam AU24_markdup_autosomes.bam --bam AU25_markdup_autosomes.bam --bam AU27_markdup_autosomes.bam --bam AU28_markdup_autosomes.bam \
+        --bam AU29_markdup_autosomes.bam --bam AU30_markdup_autosomes.bam --bam AU33_markdup_autosomes.bam --bam SND04_markdup_autosomes.bam \
+        --bam SND05_markdup_autosomes.bam --bam SND06_markdup_autosomes.bam --bam SND11_markdup_autosomes.bam --bam SND15_markdup_autosomes.bam \
+        --bam SP01_markdup_autosomes.bam --bam SP02_markdup_autosomes.bam --bam SP03_markdup_autosomes.bam --bam SP07_markdup_autosomes.bam \
+        --bam TI21_markdup_autosomes.bam --bam TI22_markdup_autosomes.bam --bam TI34_markdup_autosomes.bam --bam TI35_markdup_autosomes.bam \
+        --bam TI36_markdup_autosomes.bam --bam TI37_markdup_autosomes.bam --bam TI38_markdup_autosomes.bam --bam TI40_markdup_autosomes.bam \
+        --bam TI41_markdup_autosomes.bam
 ``` 
 And Manta executed on the resulting `runWorkflow.py` file in the designated output directories.  
 
