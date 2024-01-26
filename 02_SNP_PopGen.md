@@ -153,21 +153,21 @@ Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Es
 
 For other programs and to estimate a Ts/Tv rate for Rohan, a BCF was produced using ANGSD.  
 ```
-angsd -P 8 -b GLOBAL.list -ref $ref -out ${ANGSD}samtools/genotypes/global_SAMtools_genotypes -uniqueOnly 1 \
-    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
+angsd -P 16 -b GLOBAL.list -ref $ref -out ${ANGSD}samtools/genotypes/global_SAMtools_genotypes -uniqueOnly 1 \
+    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 37 \
     -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 1 \
     -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
 
-angsd -P 8 -b GLOBAL.list -ref $ref -out ${ANGSD}gatk/genotypes/global_GATK_genotypes -uniqueOnly 1 \
-    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 38 \
+angsd -P 16 -b GLOBAL.list -ref $ref -out ${ANGSD}gatk/genotypes/global_GATK_genotypes -uniqueOnly 1 \
+    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 37 \
     -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 2 \
     -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
 
-vcftools --vcf ${ANGSD}gatk/genotypes/global_GATK_genotypes \
+vcftools --bcf ${ANGSD}gatk/genotypes/global_GATK_genotypes.bcf \
     --TsTv-sumamry \
     --out ${ANGSD}gatk/genotypes/global_GATK_genotypes
 
-vcftools --vcf ${ANGSD}samtools/genotypes/global_SAMtools_genotypes \
+vcftools --bcf ${ANGSD}samtools/genotypes/global_SAMtools_genotypes.bcf \
     --TsTv-sumamry \
     --out ${ANGSD}samtools/genotypes/global_SAMtools_genotypes
 ```
@@ -285,11 +285,11 @@ angsd -P 8 -b ${ANGSD}GLOBAL.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/GLOB
 ```
 
 ```
-realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx > ${ANGSD}gatk/sfs/AU_realSFS_unfolded_100boots.sfs
+realSFS -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx > ${ANGSD}gatk/sfs/AU_realSFS_unfolded_100boots.sfs
 
-realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/TI_unfolded.saf.idx > ${ANGSD}gatk/sfs/TI_realSFS_unfolded_100boots.sfs
+realSFS -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/TI_unfolded.saf.idx > ${ANGSD}gatk/sfs/TI_realSFS_unfolded_100boots.sfs
 
-realSFS -fold 0 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx ${ANGSD}gatk/sfs/TI_fold.saf.idx > ${ANGSD}gatk/sfs/GLOBAL_realSFS_unfolded_100boots.sfs
+realSFS -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU_unfolded.saf.idx ${ANGSD}gatk/sfs/TI_fold.saf.idx > ${ANGSD}gatk/sfs/GLOBAL_realSFS_unfolded_100boots.sfs
 ```
 ## Theta Statistics
 Using the ANGSD `-doSaf 1` and realSFS outputs, theta neutrality statistics were estimated using realSFS and associated thetaStat programmes.  
