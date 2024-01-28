@@ -17,14 +17,14 @@ print_pal(pal)
 ## Heterozygosity
 Individual heterozygosity as estimated by ANGSD.  
 ```{r heterozygosity, include=FALSE}
-indiv_het <- read.csv("angsd/heterozygosity_summary.tsv", sep="\t", header = TRUE)
+indiv_het <- read.csv("angsd/individual_het.tsv", sep="\t", header = TRUE)
 
 pdf("plots/SNP_heterozygosity.pdf")
-ggplot(indiv_het, aes(x=Population, y = Heterozygosity, fill = Tool)) +
+ggplot(indiv_het, aes(x=Tool, y = Heterozygosity, fill = Population)) +
     geom_violin() +
     theme_light() +
     labs(x = "Population", y = "Observed Heterozygosity", title = "Individual Heterozygosity") +
-    scale_fill_manual(values = c("gatk" = "#E5BF86","samtools" = "#287DAB")) 
+    scale_fill_manual(values = c("AU" = "#E5BF86","NZ" = "#287DAB")) 
 dev.off()
 ```
 

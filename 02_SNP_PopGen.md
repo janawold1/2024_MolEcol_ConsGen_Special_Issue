@@ -188,22 +188,24 @@ Individual heterozygosity was then output to a file.
 SIZE=$(awk '{sum+=$3}; END {print sum}' Katie_autosomes2.bed)
 echo $SIZE
 
+printf "Sample\tHeterozygosity\tTool\tPopulation\n" > ${ANGSD}individual_het.tsv 
 
-
-for tool in gatk samtools
+for TOOL in gatk samtools
     do
-    for SAMP in ${ANGSD}${tool}/heterozygosity/*_est.ml
+    for SAMP in ${ANGSD}${TOOL}/heterozygosity/*_est.ml
         do
         BASE=$(basename $SAMP _est.ml)
         HET=$(awk '{print $2/1088797119}' $SAMP)
-        printf "$BASE\t$HET\t$tool\n" >> ${ANGSD}${tool}/heterozygosity/individual_het.tsv
+        if [[ "$BASE" == *"AU"* ]]
+            then
+            printf "$BASE\t$HET\t$TOOL\tAU\n" >> ${ANGSD}individual_het.tsv
+            else
+            printf "$BASE\t$HET\t$TOOL\tNZ\n" >> ${ANGSD}individual_het.tsv
+        fi
     done
 done
 
-printf "Sample\tHeterozygosity\tTool\n" > ${ANGSD}heterozygosity_summary.tsv 
 
-cat ${ANGSD}gatk/heterozygosity/individual_het.tsv >> ${ANGSD}heterozygosity_summary.tsv
-cat ${ANGSD}samtools/heterozygosity/individual_het.tsv >> ${ANGSD}heterozygosity_summary.tsv
 ```
 
 ## Population Structure
