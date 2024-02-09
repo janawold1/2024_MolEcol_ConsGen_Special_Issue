@@ -22,7 +22,7 @@ Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blo
 | ------------------- | ---------- | ------- | ----------- | ----------- | ----------------- |
 |Australian Fairy Tern|     20     |    20   |     170     |     360     |        19         |
 |      Tara iti       |     20     |    20   |     100     |     280     |        18         |
-|       Global        |     20     |    20   |     300     |     740     |        37         |
+|       Global        |     20     |    20   |     300     |     630     |        37         |
 
 A missingness threshold of 0% or 10% were used when appropriate for all subsequent analyses. Below is code run for analyses performed on alignments to the tara iti reference scaffolded using the common tern assembly. All analyses for each group were performed in a similar manner. Quality thresholds were adjusted as per the table above.  
 
@@ -103,7 +103,7 @@ angsd -P 16 -b TI.list -ref $REF -out inbreeding/TI -sites ${region} \
 
 angsd -P 16 -b GLOBAL.list -ref $REF -out inbreeding/GLOBAL -sites ${region} \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 650 -doCounts 1 \
+    -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 
 angsd -P 16 -b TI.list -ref $REF -out inbreeding/TI \
@@ -246,7 +246,7 @@ To visualise population structure using a PCA, we first ran ANGSD using the `-do
 ```
 angsd -P 16 -b ${ANGSD}GLOBAL.list -ref $REF -out ${ANGSD}samtools/structure_PCA/GLOBAL_noMiss \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
+    -minMapQ 20 -minQ 20 -minInd 37 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 32 -doPost 1
 ```
 Then, [ngsCovar](https://github.com/mfumagalli/ngsPopGen) was run to estimate covariance.  
@@ -254,13 +254,14 @@ Then, [ngsCovar](https://github.com/mfumagalli/ngsPopGen) was run to estimate co
 gunzip structure_PCA/GLOBAL_noMiss.geno.gz
 
 NSITES=$(zcat structure_PCA/GLOBAL_noMiss.mafs.gz | tail -n+2 | wc -l)
-ngsCovar -probfile structure_PCA/GLOBAL_noMiss.geno \
-    -outfile structure_PCA/GLOBAL_noMiss.covar -nind 38 -nsites $NSITES -call 0 -norm 0
+ngsCovar -probfile structure_PCA/GLOBAL.geno \
+    -nind 37 -nsites $NSITES -outfile structure_PCA/GLOBAL_covar -call 0 -norm 0
 ```
 Before plotting with the Rscripts supplied by ngsTools.  
 ```
-Rscript -e 'write.table(cbind(seq(1,38),rep(1,38),c(rep("AU",19),rep("TI",19))), row.names=F, sep="\t", col.names=c("FID","IID","CLUSTER"), file="structure_PCA/GLOBAL_noMiss.clst", quote=F)'
-Rscript plotPCA.R -i structure_PCA/GLOBAL_noMiss.covar -c 1-2 -a structure_PCA/GLOBAL_noMiss.clst -o structure_PCA/GLOBAL_noMiss.pca.pdf
+Rscript -e 'write.table(cbind(seq(1,37),rep(1,37),c(rep("AU",19),rep("NZ",18))), row.names=F, sep="\t", col.names=c("FID","IID","CLUSTER"), file="structure_PCA/GLOBAL_clst", quote=F)'
+
+Rscript plotPCA.R -i structure_PCA/GLOBAL_covar -c 1-2 -a structure_PCA/GLOBAL_clst -o structure_PCA/GLOBAL_pca.pdf
 ```
 ### MDS
 To construct a MDS for fairy tern populations, we first ran ANGSD as below. Notably, the only change is the `-doGeno 8` flag.  
@@ -275,19 +276,23 @@ This command not only generates the required `*.mafs.gz`, but also the `*.geno.g
 NSITES=$(zcat GLOBAL.mafs.gz | tail -n +2 | wc -l)
 echo $NSITES
 
-ngsDist -verbose 1 -geno ${ANGSD}distance/GLOBAL.geno.gz -probs \
-    -n_ind 38 -n_sites $NSITES -labels ${ANGSD}pops.label -o ${ANGSD}distance/GLOBAL.dist
+cat GLOBAL.list | sed 's%/path/to/bams/%%g' | sed 's/_markdup_autosomes.bam//g' > ${ANGSD}mds_list
+
+ngsDist -verbose 1 -geno ${ANGSD}structure_MDS/GLOBAL.geno.gz -probs \
+    -n_ind 37 -n_sites $NSITES -labels ${ANGSD}mds_list -o ${ANGSD}structure_MDS/GLOBAL_dist
 ```
 Extract and construct MDS.  
 ```
-tail -n +3 ${ANGSD}distance/GLOBAL.dist | Rscript --vanilla --slave getMDS.R \
-    --no_header --data_symm -n 4 -m "mds" -o ${ANGSD}distance/GLOBAL.mds
+tail -n +3 ${ANGSD}structure_MDS/GLOBAL_dist | Rscript --vanilla --slave getMDS.R \
+    --no_header --data_symm -n 4 -m "mds" -o ${ANGSD}structure_MDS/GLOBAL.mds
 
-head distance/GLOBAL.mds
+head structure_MDS/GLOBAL.mds
 ```
 And finally plot the MDS.  
 ```
-Rscript plotMDS.R -i ${ANGSD}distance/GLOBAL.mds -c 1-2 -a ${ANGSD}structure/GLOBAL_noMiss.clst -o ${ANGSD}distance/GLOBAL_mds.pdf
+Rscript plotMDS.R -i ${ANGSD}distance/GLOBAL.mds \
+    -c 1-2 -a ${ANGSD}structure_MDS/GLOBAL_clst \
+    -o ${ANGSD}structure_MDS/GLOBAL_mds.pdf
 ```
 ### Population Structure with Inbreeding
 Initial inbreeding estimates for tara iti indicate that the population is likely out of hardy-weinburg equilibrium (HWE). To account for this, relative inbreeding levels were incorporated into assessments of population structure.  
@@ -311,11 +316,6 @@ angsd -P 16 -b ${ANGSD}TI.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/TI \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ20 -minInd 18 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
     -GL 2 -doSaf 1
-
-angsd -P 8 -b ${ANGSD}GLOBAL.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/GLOBAL \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
-    -GL 1 -doSaf 1
 ```
 
 ```
@@ -326,15 +326,48 @@ realSFS -P 16 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/TI.saf.idx > ${ANGSD}ga
 realSFS -P 16 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU.saf.idx ${ANGSD}gatk/sfs/TI.saf.idx > ${ANGSD}gatk/sfs/GLOBAL_100boots.sfs
 ```
 ## Theta Statistics
-Using the ANGSD `-doSaf 1` and realSFS outputs, theta neutrality statistics were estimated using realSFS and associated thetaStat programmes.  
+Using the ANGSD `-doSaf 1` and realSFS outputs, theta neutrality statistics and nucleotide diversity were estimated using realSFS and associated thetaStat programmes.  
 ```
-for POP in GLOBAL
+i=1
+while read -r line
     do
-    tail -n1 ${ANGSD}gatk/sfs/${POP}_unfold_realSFS_unfolded_100boots.sfs > ${ANGSD}gatk/diversity/${POP}_unfold.sfs
-    realSFS saf2theta sfs/${POP}.saf.idx -outname diversity/${POP} -sfs diversity/${POP}_100boots.sfs -fold 0
-    thetaStat do_stat ${ANGSD}gatk/diversity/${POP}.thetas.idx
-    thetaStat do_stat ${ANGSD}gatk/diversity/${POP}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}gatk/diversity/${POP}_thetasWindow
+    echo $i
+    echo $line > ${ANGSD}samtools/sfs/AU_rep${i}.sfs
+    i=$(( i + 1 ))
+done < ${ANGSD}samtools/sfs/AU_100boots.sfs
+
+i=1
+while read -r line
+    do
+    echo $i
+    echo $line > ${ANGSD}samtools/sfs/TI_rep${i}.sfs
+    i=$(( i + 1 ))
+done < ${ANGSD}samtools/sfs/TI_100boots.sfs
+
+for SFS in ${ANGSD}samtools/sfs/AU_rep{1..100}.sfs 
+    do
+    BASE=$(basename $SFS .sfs)
+    echo $BASE
+    realSFS saf2theta ${ANGSD}samtools/sfs/AU.saf.idx -sfs ${SFS} -outname ${ANGSD}samtools/diversity/${BASE}
+    thetaStat do_stat ${ANGSD}samtools/diversity/${BASE}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}samtools/diversity/${BASE}_thetas_windows
 done
+
+for SFS in ${ANGSD}samtools/sfs/TI_rep{1..100}.sfs 
+    do
+    BASE=$(basename $sfs .sfs)
+    echo $BASE
+    realSFS saf2theta -P 26 ${ANGSD}samtools/sfs/TI.saf.idx -sfs ${SFS} -outname ${ANGSD}samtools/diversity/${BASE}
+    thetaStat do_stat ${ANGSD}samtools/diversity/${BASE}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}samtools/diversity/${BASE}_thetas_windows
+done
+
+for SFS in ${DIR}samtools/sfs/reps/GLOBAL_rep*.sfs
+    do
+    BASE=$(basename $SFS .sfs)
+    realSFS fst index ${DIR}samtools/sfs/AU.saf.idx ${DIR}samtools/sfs/TI.saf.idx -sfs ${SFS} -fstout ${DIR}samtools/diversity/${BASE} -whichFst 1
+    realSFS fst stats2 ${DIR}samtools/diversity/${BASE}.fst.idx -win 50000 -step 10000 > ${DIR}samtools/diversity/${BASE}_fst.txt
+done
+#thetaStat do_stat ${ANGSD}diversity/${POP}.thetas.idx -outnames 
+#thetaStat do_stat ${ANGSD}diversity/${POP}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}diversity/${POP}_thetasWindow
 ```
 Only the Watterson's Theta and Tajima's D can be estimated with a folded SFS. The mean value of Tajima's D was estimated by the below.  
 
@@ -357,12 +390,26 @@ This yielded the result:
 We also ran:
 ```
 realSFS fst stats2 distance/total_fst.idx \
-    -tole 1e-6 -fold 1 -anc $ref -win 50000 -step 10000 -whichFST 1 > distance/total_fst2_results.tsv
+    -tole 1e-6 -anc $ANC -win 50000 -step 10000 -whichFST 1 > distance/total_fst2_results.tsv
 ```
+```
+ ##run in R
+yc<-scan("GLOBAL_subset.sfs")
+    source("plot2dSFS.R")
 
-```
-angsd -P 8 -b AU.list -ref ${REF} -anc ${ANC} -out diversity/AU_folded -sites ${region} \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 114 -setMaxDepth 300 -doCounts 1 \
-    -GL 1 -doSaf 1 -doThetas 1 -pest sfs/AU_fold.sfs
+plot2<-function(s,...){
+    dim(s)<-c(39,37)
+    s[1]<-NA
+    s[39,37]<-NA
+s<-s/sum(s,na.rm=T)
+
+    pal <- color.palette(c("darkgreen","#00A600FF","yellow","#E9BD3AFF","orange","red4","darkred","black"), space="rgb")
+    pplot(s/sum(s,na.rm=T),pal=pal,...)
+}
+
+plot2(yc,ylab="AU",xlab="NZ")
+#x11() # (not needed if you use Rstudio)
+#plot2(yj,ylab="YRI",xlab="JPT")
+#x11() #(not needed if you use Rstudio)
+#plot2(jc,ylab="JPT",xlab="CEU")
 ```

@@ -52,19 +52,27 @@ configManta.py --referenceFasta $REF --callRegions reference/Katie_autosomes2.be
 ``` 
 And Manta executed on the resulting `runWorkflow.py` file in the designated output directories.  
 
+Filtering of raw Manta calls was relatively simple. Because Manta outputs inversions as breakends ([see here](https://github.com/Illumina/manta/blob/master/docs/userGuide/README.md)), Inversion calls were converted from Breakends using the `convertInversions.py` script supplied by Manta.  
+```
+convertInversion.py ~/anaconda3/envs/samtools/bin/samtools $REF \
+    manta/results/variants/diploidSV.vcf.gz > manta/results/variants/diploid_INV_convert.vcf
+```
+Then all reads had to pass all 'hard' filtering thresholds and have 'PRECISE' breakpoints.  
+```
+bcftools view -i 'INFO/SVTYPE!="BND" & FILTER="PASS" & IMPRECISE=0' \
+    -O z -o manta/results/variants/diploid_INV_filtered.vcf.gz \
+    manta/results/variants/diploid_INV_convert.vcf
+```
+
 The raw calls initially comprised of:  
-|    SV Type   | Number Called | Filtered Count |
-| ------------ | ------------- | -------------- |
-|  Breakends   |      XXX      |        0       |
-|  Deletions   |     X,XXX     |      X,XXX     |
-| Duplications |      XXX      |       XXX      |
-|  Insertions  |      XXX      |       XXX      |
-|  Inversions  |     X,XXX     |      X,XXX     |
-|  **Total**   |  **XX,XXX**   |   **XX,XXX**   |
-
-Filtering of raw Manta calls was relatively simple. First, Inversion calls were converted from Breakends using the `convertInversions.py` script supplied by Manta. Then all reads had to pass all 'hard' filtering thresholds and have 'PRECISE' breakpoints.  
-
-Files for individual chromsomes were then concatenated into a single file with `bcftools`.  
+|    SV Type   | Number Called | Converting Inversions | Filtered Count |
+| ------------ | ------------- | --------------------- | -------------- |
+|  Breakends   |    20,658     |          742          |        0       |
+|  Deletions   |     7,070     |         7,070         |      6,158     |
+| Duplications |      663      |          663          |       420      |
+|  Insertions  |     4,065     |         4,065         |      3,845     |
+|  Inversions  |       0       |         9,958         |      8,208     |
+|  **Total**   |  **32,456**   |      **22,498**       |   **18,631**   |  
 
 ## Smoove Discovery
 
@@ -99,7 +107,24 @@ The raw calls initially comprised of:
 |  Inversions  |    11,813     |       345      |
 |  **Total**   |  **25,008**   |    **1,070**   |
 
-
+## Validating Filtered SV Calls
+[SAMplot]() and [plotCritic]()vX.X were used to evaluate SV calls from Delly, Smoove and Manta. However, SAMplot is only able to plot Deletions, Duplications and Inversions. For this step, sites for each of the tools were first extracted with BCFtools.  
+```
+for tool in delly manta smoove
+    do
+    echo "EXTRACTING SITES FROM $tool..."
+    bcftools query -i 'SVTYPE!="INS"' -f '%CHROM\t%POS\t%END\t%SVTYPE' ${tool}/02_filteredSVs.vcf > ${tool}/samplot_sites.tsv
+done
+```
+Then used as input for plotting for 6 Australian fairy terns (3 female, 3 male) and 6 tara iti (3 female, 3 male).  
+```
+for tool in delly manta smoove
+    do
+    while read -r line
+        do
+        printf "STARTED RUNNING SAMPLOT FOR $tool AT "
+        date
+```
 ## Merging Filtered SV Calls
 
 
