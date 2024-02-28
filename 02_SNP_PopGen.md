@@ -21,18 +21,20 @@ Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blo
 |      Population     |minimum mapQ|minimum Q|minimum depth|maximum depth|minimum individuals|
 | ------------------- | ---------- | ------- | ----------- | ----------- | ----------------- |
 |Australian Fairy Tern|     20     |    20   |     170     |     360     |        19         |
-|      Tara iti       |     20     |    20   |     100     |     280     |        18         |
-|       Global        |     20     |    20   |     300     |     630     |        37         |
+|      Tara iti       |     20     |    20   |     100     |     280     |        16         |
+|       Global        |     20     |    20   |     300     |     630     |        35         |
 
 A missingness threshold of 0% or 10% were used when appropriate for all subsequent analyses. Below is code run for analyses performed on alignments to the tara iti reference scaffolded using the common tern assembly. All analyses for each group were performed in a similar manner. Quality thresholds were adjusted as per the table above.  
 
 Before progressing further, the SAMtools genotype likelihood model `-GL 1` and GATK genotype likelihood model `-GL 2` were trialled to see if there were differences.
 
 ## Excluding coding Regions
-Gene prediction for the tara iti genome assembly was performed using [AUGUSTUS](https://github.com/Gaius-Augustus/Augustus/tree/master) v3.5.0. 
+*Ab initio* gene prediction was performed using [AUGUSTUS](https://github.com/Gaius-Augustus/Augustus/tree/master) v3.5.0. 
 ```
 augustus --sample=100 --alternatives=false --temperature=3 --species=chicken $REF > reference/Katie_AUGUSTUS.gff
 ```
+This output a `GFF` file of predicted . 
+
 [BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.31.0 was used to find the complement of the UCSC annotation and exclude coding regions of the genome. An additional 1kb of sequence on either side of annotations were included to reduce linkage.  
 
 First, the annotations for autosomal chromosomes were extracted and the window size for these regions increased by 1kb on either side for each annotation file.  
@@ -78,8 +80,6 @@ angsd sites index TI_scaffolded_neutral_regions.bed
 
 We also extracted the autosomoal chromosomes from the common tern assembly, and renamed them with the same names in the tara iti reference assembly. This was so we could polarize the site frequency spectrum with common tern as the ancestral state. 
 
-### Test for Sex Specific differences?
-
 ## Common tern ancestral alleles
 It is useful to have the ancestral state for some of the analyses below. To this end, we aligned short reads from the common tern genome assembly to the tara iti genome and converted to a Fasta file. We opted this approach over using the common tern genome assembly directly as the chromosomes had different sizes and were not compatible with ANGSD methods ([brief discussion here](https://www.biostars.org/p/298013/)). This also has the benefit of ensuring that comparisons are made between the same regions, regardless of potential rearrangements. The reads for common tern were trimmed, aligned, and duplicates marked in the same manner as the fairy tern population short-reads. Would only work when using a file as input to command as below.  
 ```
@@ -91,24 +91,31 @@ angsd -P 16 -doFasta 1 -doCounts 1 -out ${ANGSD}bSteHir1_ancestral -b ${ANGSD}CT
 ### F statistics
 To estimate relative levels of inbreeding and account for the high likelihood that tara iti do not conform to Hardy-Weinberg Equilibrium (HWE), we first generated population specific genotype likelihoods for input into [ngsF](https://github.com/mfumagalli/ngsTools) v1.2.0-STD. The outputs of these analyses can also be used as a prior for populations that are not in hardy-weinburg equilibrium (HWE).  
 ```
-angsd -P 16 -b AU.list -ref $REF -out inbreeding/AU -sites ${region} \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
+for POP in AU TI GLOBAL
+    do
+    if [[ "${POP}" == "AU" ]]
+        then
+        angsd -P 26 -b AU.list -ref $REF -out inbreeding/AU -sites ${region} \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
+            -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
+    elif [[ "${POP}" == "TI" ]]
+        then
+        angsd -P 26 -b TI.list -ref $REF -out inbreeding/TI -sites ${region} \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 16 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
+            -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
+        else
+        angsd -P 26 -b GLOBAL.list -ref $REF -out inbreeding/GLOBAL -sites ${region} \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 35 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
+            -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
+    fi
+done
 
-angsd -P 16 -b TI.list -ref $REF -out inbreeding/TI -sites ${region} \
+angsd -P 26 -b TI.list -ref $REF -out inbreeding/TI \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 18 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
-
-angsd -P 16 -b GLOBAL.list -ref $REF -out inbreeding/GLOBAL -sites ${region} \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
-
-angsd -P 16 -b TI.list -ref $REF -out inbreeding/TI \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 18 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
+    -minMapQ 20 -minQ 20 -minInd 16 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 ```
 This left 1,839,732 sites in the `AU` dataset, 677,440 sites in the `TI` dataset, and XXX,XXX sites in the `GLOBAL` dataset upon the completion of ANGSD. Next, `ngsF` was used to estimate inbreeding. First, an initial search was performed. The below was perfomed for each of the `AU`, `TI`, and `GLOBAL` data sets upon the completion of ANGSD.  
@@ -170,7 +177,7 @@ done
 ```
 This resulted in a TsTv ratio of 1.871 for tara iti and 2.507 for Australian fairy tern.  
 
-Finally, ROHan was run on for each individual.
+Finally, ROHan was run on for a subset of individuals. The `--rohmu` flag was varied to ensure regions containing ROHs were detected as per [this discussion](https://github.com/grenaud/ROHan/issues/12#issuecomment-1935539239).
 ```
 ./faSomeRecords reference/Katie_5kb_ragtag.fa Katie_autosomes2.bed reference/Katie_ragtag_autosomes2.fa
 samtools faidx reference/Katie_ragtag_autosomes2.fa
@@ -183,12 +190,42 @@ for BAM in *_rohan.bam
     date
     if [[ "$BASE" == "AU"*]]
         then
-        rohan -t 16 --tstv 2.507 --size 50000 --rohmu 4.6e-9 -o output/${BASE} $REF $BAM
+        rohan -t 16 --tstv 2.507 --size 50000 --rohmu 5e-5 -o output/${BASE} $REF $BAM
         else
-        rohan -t 16 --tstv 1.871 --size 50000 --rohmu 4.6e-9 -o output/${BASE} $REF $BAM
+        rohan -t 16 --tstv 1.871 --size 50000 --rohmu 5e-5 -o output/${BASE} $REF $BAM
     fi
     printf "FINISHED RUNNING ROHAN FOR ${BASE} AT "
     date
+done
+```
+We then prepared summary plots for ROHs, one file each for tara iti and Australian fairy tern containing all ROH sizes calculated using the mid. estimates of heterozygosity. 
+```
+for FILE in rohan/rohmu_5e5/*.mid.hmmrohl.gz
+    do
+    BASE=$(basename $FILE .mid.hmmrohl.gz)
+    if [[ "$BASE" == "AU"* ]]
+        then
+        zcat $FILE | tail -n+2 | cut -f5 >> au_roh.txt
+        else
+        zcat $FILE | tail -n+2 | cut -f5 >> nz_roh.txt
+    fi
+done 
+```
+We also parsed a file with subsetting the summary files of all individuals. 
+```
+printf "Sample\tPerc_in_ROH\tMean_ROH_size\tPopulation\n" > ROH_summary.txt
+
+for FILE in rohan/rohmu_5e5/*.summary.txt
+    do
+    BASE=$(basename $FILE .summary.txt)
+    PERC=$(tail -n4 $FILE | head -n1 | awk '{print $5}')
+    SIZE=$(tail -n1 $FILE | awk '{print $6}')
+    if [[ "$BASE" == "AU"* ]]
+        then
+        printf "${BASE}\t${PERC}\t${SIZE}\tAU\n" >> ROH_summary.txt
+        else
+        printf "${BASE}\t${PERC}\t${SIZE}\tNZ\n" >> ROH_summary.txt
+    fi
 done
 ```
 
@@ -244,9 +281,9 @@ done
 ### PCA
 To visualise population structure using a PCA, we first ran ANGSD using the `-doGeno 32` and `-doPost 1` options.  
 ```
-angsd -P 16 -b ${ANGSD}GLOBAL.list -ref $REF -out ${ANGSD}samtools/structure_PCA/GLOBAL_noMiss \
+angsd -P 16 -b ${ANGSD}GLOBAL.list -ref $REF -out ${ANGSD}samtools/structure_PCA/GLOBAL \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 37 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
+    -minMapQ 20 -minQ 20 -minInd 35 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 32 -doPost 1
 ```
 Then, [ngsCovar](https://github.com/mfumagalli/ngsPopGen) was run to estimate covariance.  
@@ -268,7 +305,7 @@ To construct a MDS for fairy tern populations, we first ran ANGSD as below. Nota
 ```
 angsd -P 16 -b GLOBAL.list -ref $REF -out ${ANGSD}structure_MDS/GLOBAL \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 38 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
+    -minMapQ 20 -minQ 20 -minInd 35 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 8 -doPost 1
 ```
 This command not only generates the required `*.mafs.gz`, but also the `*.geno.gz`, which contains posterior probabilities of all possible genotypes required for estimating genetic distance with [ngsDistv1.0.10](github.com/mfumagalli/ngsTools). In addition, a `pops.label` file denoting the population of origin (one entry on a new line for each samples) is necessary for estimating genetic distance.  
@@ -297,9 +334,6 @@ Rscript plotMDS.R -i ${ANGSD}distance/GLOBAL.mds \
 ### Population Structure with Inbreeding
 Initial inbreeding estimates for tara iti indicate that the population is likely out of hardy-weinburg equilibrium (HWE). To account for this, relative inbreeding levels were incorporated into assessments of population structure.  
 
-### Geographic Population Structure (GPS)
-Analyses of population structure using PCAs have been shown to exhibit bias ([Elhaik et al 2022](https://doi.org/10.1038/ncomms4513)). Admixture based approaches, like those implemented in [GPS](https://github.com/arash-darzian/Geographic_Population_Structure_GPS/tree/main) have been proposed. This program leverages XXX may not want to use as it has a strong aDNA focus XXX.
-
 ## Summary Statistics
 ### Site Frequency Spectrum
 The intermediate site frequency spectrum estimated in the example above were used to generate SFS files with realSFS. Here, we are using the common tern as the ancestral state.  
@@ -307,75 +341,67 @@ The intermediate site frequency spectrum estimated in the example above were use
 ANC=${ANGSD}bSteHir1_ancestral.fasta
 region=TI_scaffolded_neutral_regions.bed
 
-angsd -P 16 -b ${ANGSD}AU.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/AU \
+angsd -P 16 -b ${ANGSD}AU.list -ref $REF -anc $ANC -out ${ANGSD}samtools/sfs/AU \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
-    -GL 2 -doSaf 1
+    -GL 1 -doSaf 1
 
-angsd -P 16 -b ${ANGSD}TI.list -ref $REF -anc $ANC -out ${ANGSD}gatk/sfs/TI \
+angsd -P 16 -b ${ANGSD}TI.list -ref $REF -anc $ANC -out ${ANGSD}samtools/sfs/TI \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ20 -minInd 18 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
-    -GL 2 -doSaf 1
+    -minMapQ 20 -minQ20 -minInd 16 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
+    -GL 1 -doSaf 1
 ```
-
+First, bootstrapped estimates were generated under resampling for confidence intervals of nucleotide diversity and F-statistics.
 ```
-realSFS -P 16 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU.saf.idx > ${ANGSD}gatk/sfs/AU_100boots.sfs
-
-realSFS -P 16 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/TI.saf.idx > ${ANGSD}gatk/sfs/TI_100boots.sfs
-
-realSFS -P 16 -bootstrap 100 -tole 1e-6 ${ANGSD}gatk/sfs/AU.saf.idx ${ANGSD}gatk/sfs/TI.saf.idx > ${ANGSD}gatk/sfs/GLOBAL_100boots.sfs
+realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/AU.saf.idx > ${ANGSD}${TOOL}/sfs/AU_100boots.sfs
+realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/TI_100boots.sfs
+realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/AU.saf.idx ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/GLOBAL_100boots.sfs
+```
+Then a standard run of `realSFS` was performed for comparison as there remains some discussion around the performance of relative differences in the resampling methods for bootstrapping ([see here](https://github.com/ANGSD/angsd/pull/195)).  
+```
+realSFS -P 40 ${ANGSD}${TOOL}/sfs/AU.saf.idx ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/GLOBAL_no_boots.sfs
 ```
 ## Theta Statistics
 Using the ANGSD `-doSaf 1` and realSFS outputs, theta neutrality statistics and nucleotide diversity were estimated using realSFS and associated thetaStat programmes.  
 ```
-i=1
-while read -r line
+for POP in AU TI
     do
-    echo $i
-    echo $line > ${ANGSD}samtools/sfs/AU_rep${i}.sfs
-    i=$(( i + 1 ))
-done < ${ANGSD}samtools/sfs/AU_100boots.sfs
-
-i=1
-while read -r line
+    i=1
+    while read -r line
     do
-    echo $i
-    echo $line > ${ANGSD}samtools/sfs/TI_rep${i}.sfs
-    i=$(( i + 1 ))
-done < ${ANGSD}samtools/sfs/TI_100boots.sfs
+        echo $i
+        echo $line > ${ANGSD}samtools/sfs/reps/${POP}_rep${i}.sfs
+        i=$(( i + 1 ))
+    done < ${ANGSD}samtools/sfs/${POP}_100boots.sfs
+    i=1
+done
 
-for SFS in ${ANGSD}samtools/sfs/AU_rep{1..100}.sfs 
+for SFS in ${ANGSD}samtools/sfs/reps/*_rep{1..100}.sfs 
     do
     BASE=$(basename $SFS .sfs)
+    POP=$(echo "${BASE%_rep*}")
     echo $BASE
-    realSFS saf2theta ${ANGSD}samtools/sfs/AU.saf.idx -sfs ${SFS} -outname ${ANGSD}samtools/diversity/${BASE}
-    thetaStat do_stat ${ANGSD}samtools/diversity/${BASE}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}samtools/diversity/${BASE}_thetas_windows
+    if [[ "$POP" == "AU" ]]
+        then
+        realSFS saf2theta ${ANGSD}${TOOL}/sfs/AU.saf.idx -sfs ${SFS} -outname ${ANGSD}${TOOL}/diversity/${BASE}
+        thetaStat do_stat ${ANGSD}${TOOL}/diversity/${BASE}.thetas.idx -win 10000 -step 1000 -outnames ${ANGSD}${TOOL}/diversity/${BASE}_thetas_10KBwindows
+        thetaStat do_stat ${ANGSD}${TOOL}/diversity/${BASE}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}${TOOL}/diversity/${BASE}_thetas_50KBwindows
+    elif [[ "$POP" == "TI" ]]
+        realSFS saf2theta ${ANGSD}${TOOL}/sfs/TI.saf.idx -sfs $SFS -outname ${ANGSD}${TOOL}/diversity/${BASE}
+        thetaStat do_stat ${ANGSD}${TOOL}/diversity/${BASE}.thetas.idx -win 10000 -step 1000 -outnames ${ANGSD}${TOOL}/diversity/${BASE}_thetas_10KBwindows
+        thetaStat do_stat ${ANGSD}${TOOL}/diversity/${BASE}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}${TOOL}/diversity/${BASE}_thetas_50KBwindows
+    else
+        realSFS fst index ${DIR}${TOOL}/sfs/AU.saf.idx ${DIR}${TOOL}/sfs/TI.saf.idx -sfs ${SFS} -fstout ${DIR}${TOOL}/distance/${BASE} -whichFst 1
+        realSFS fst stats2 ${DIR}${TOOL}/distance/${BASE}.fst.idx -win 10000 -step 1000 > ${DIR}${TOOL}/distance/${BASE}_fst_10KBwindows.txt
+        realSFS fst stats2 ${DIR}${TOOL}/distance/${BASE}.fst.idx -win 50000 -step 10000 > ${DIR}${TOOL}/distance/${BASE}_fst_50KBwindows.txt
+    fi
 done
-
-for SFS in ${ANGSD}samtools/sfs/TI_rep{1..100}.sfs 
-    do
-    BASE=$(basename $sfs .sfs)
-    echo $BASE
-    realSFS saf2theta -P 26 ${ANGSD}samtools/sfs/TI.saf.idx -sfs ${SFS} -outname ${ANGSD}samtools/diversity/${BASE}
-    thetaStat do_stat ${ANGSD}samtools/diversity/${BASE}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}samtools/diversity/${BASE}_thetas_windows
-done
-
-for SFS in ${DIR}samtools/sfs/reps/GLOBAL_rep*.sfs
-    do
-    BASE=$(basename $SFS .sfs)
-    realSFS fst index ${DIR}samtools/sfs/AU.saf.idx ${DIR}samtools/sfs/TI.saf.idx -sfs ${SFS} -fstout ${DIR}samtools/diversity/${BASE} -whichFst 1
-    realSFS fst stats2 ${DIR}samtools/diversity/${BASE}.fst.idx -win 50000 -step 10000 > ${DIR}samtools/diversity/${BASE}_fst.txt
-done
-#thetaStat do_stat ${ANGSD}diversity/${POP}.thetas.idx -outnames 
-#thetaStat do_stat ${ANGSD}diversity/${POP}.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}diversity/${POP}_thetasWindow
 ```
-Only the Watterson's Theta and Tajima's D can be estimated with a folded SFS. The mean value of Tajima's D was estimated by the below.  
-
 Genetic differentiation.  
 ```
-realSFS fst index sfs/AU.saf.idx sfs/TI.saf.idx -sfs diversity/total_fold.sfs -fstout distance/total_fst
+realSFS fst index sfs/AU.saf.idx sfs/TI.saf.idx -sfs sfs/GLOBAL_no_boots.sfs -fstout distance/GLOBAL_fst
 
-realSFS fst stats distance/total_fst.idx \
+realSFS fst stats distance/GLOBAL_fst.idx \
     -tole 1e-6 -win 50000 -step 10000 -whichFst 1 > distance/total_fst_results.tsv
 ```
 This yielded the result:  
