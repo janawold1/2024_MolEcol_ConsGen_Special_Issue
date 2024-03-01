@@ -25,11 +25,11 @@ Number of SVs called and number passing filtering thresholds:
 |    SV Type   | Number Called | Filtered Count |
 | ------------ | ------------- | -------------- |
 |  Breakends   |      750      |        0       |
-|  Deletions   |     7,525     |      7,313     |
-| Duplications |      600      |       190      |
-|  Insertions  |      991      |       991      |
-|  Inversions  |    15,637     |      6,100     |
-|  **Total**   |  **25,503**   |   **14,594**   |
+|  Deletions   |     7,933     |      7,321     |
+| Duplications |      602      |       190      |
+|  Insertions  |      992      |       992      |
+|  Inversions  |    15,642     |      6,105     |
+|  **Total**   |  **25,919**   |   **14,608**   |
 
 These final SVs were then merged with the other datasets and used as input into the VG graph as outlined below.  
 ## Manta Discovery
@@ -104,7 +104,7 @@ The raw calls initially comprised of:
 |  **Total**   |  **25,008**   |    **1,070**   |
 
 ## Validating Filtered SV Calls
-[SAMplot]() and [plotCritic]()vX.X were used to evaluate SV calls from Delly, Smoove and Manta. However, SAMplot is only able to plot Deletions, Duplications and Inversions. For this step, sites for each of the tools were first extracted with BCFtools.  
+[SAMplot](https://github.com/ryanlayer/samplot) and [plotCritic](https://github.com/jbelyeu/PlotCritic) vX.X were used to evaluate SV calls from Delly, Smoove and Manta. However, SAMplot is only able to plot Deletions, Duplications and Inversions. For this step, sites for each of the tools were first extracted with BCFtools.  
 ```
 for tool in delly manta smoove
     do

@@ -18,70 +18,67 @@ done
 ```
 Courtesy of scripts provided by [@mfumagalli](github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md), the distributions of these sites were visualised with `Rscript ~/ngsTools/Scripts/plotQC.R GLOBAL.qc` and meaningful filtering thresholds were identified. Below is a table outlining filtering thresholds for subsequent population analyses.
 
-|      Population     |minimum mapQ|minimum Q|minimum depth|maximum depth|minimum individuals|
-| ------------------- | ---------- | ------- | ----------- | ----------- | ----------------- |
-|Australian Fairy Tern|     20     |    20   |     170     |     360     |        19         |
-|      Tara iti       |     20     |    20   |     100     |     280     |        16         |
-|       Global        |     20     |    20   |     300     |     630     |        35         |
+|        Population        |minimum mapQ|minimum Q|minimum depth|maximum depth|minimum individuals|
+| ------------------------ | ---------- | ------- | ----------- | ----------- | ----------------- |
+|Australian Fairy Tern (WA)|     20     |    20   |     170     |     360     |        19         |
+|         Tara iti         |     20     |    20   |     90      |     280     |        15         |
+|          Global          |     20     |    20   |     204     |     630     |        34         |
+|           Kakī           |     20     |    20   |     XXX     |     XXX     |        XX         |
 
-A missingness threshold of 0% or 10% were used when appropriate for all subsequent analyses. Below is code run for analyses performed on alignments to the tara iti reference scaffolded using the common tern assembly. All analyses for each group were performed in a similar manner. Quality thresholds were adjusted as per the table above.  
+ Below is code run for analyses performed on alignments of fairy terns to the tara iti reference scaffolded using the common tern assembly (see [00_genome_assembly.md](https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/00_genome_assembly.md)) and alignments of kakī to the high-quality reference assembly for this species (see [here](https://www.genomics-aotearoa.org.nz/our-work/completed-projects/high-quality-genomes) for details). All analyses for each group were performed in a similar manner for downstream comparisons. Quality thresholds were adjusted as per the table above.  
 
-Before progressing further, the SAMtools genotype likelihood model `-GL 1` and GATK genotype likelihood model `-GL 2` were trialled to see if there were differences.
+These thresholds left X,XXX,XXX sites in the WA population of Australian fairy tern (`AU`) dataset, XXX,XXX sites in the tara iti dataset (`TI`), XXX,XXX sites in the fairy tern dataset (`GLOBAL`), and X,XXX,XXX in the kakī dataset (`KI`) for analyses.  
 
-## Excluding coding Regions
-*Ab initio* gene prediction was performed using [AUGUSTUS](https://github.com/Gaius-Augustus/Augustus/tree/master) v3.5.0. 
+## Excluding putative coding Regions
+Neither the tara iti or kakī reference assemblies have high-quality transcriptomes. This is significant given the potential of selection to influence some of the analyses performed here (e.g., estimates of historical N<sub>e</sub>). To assess the potential consequences of the inclusion of these regions, and to have a 'first look' at the genomic diversity around coding regions, we performed *ab initio* gene prediction using [AUGUSTUS](https://github.com/Gaius-Augustus/Augustus/tree/master) v3.5.0.  
 ```
 augustus --sample=100 --alternatives=false --temperature=3 --species=chicken $REF > reference/Katie_AUGUSTUS.gff
 ```
-This output a `GFF` file of predicted . 
+Autosomal chromosomes were extracted from these predictions, and [BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.30.0 was then used to sort, and merge these putative gene regions. An additional 1kb of sequence on either side of annotations were included to reduce linkage.  
 
-[BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.31.0 was used to find the complement of the UCSC annotation and exclude coding regions of the genome. An additional 1kb of sequence on either side of annotations were included to reduce linkage.  
-
-First, the annotations for autosomal chromosomes were extracted and the window size for these regions increased by 1kb on either side for each annotation file.  
+First, the annotations for .  
 ```
-zcat reference/GCA_009819605.1/genes/GCA_009819605.1_bSteHir1.pri.xenoRefGene.gtf.gz | \
-    sort | \
-    grep -v WNM | \
-    grep -v CM020500 | \
-    grep -v CM020463 | \
+grep -v "#" reference/gene_predictions/Katie_AUGUSTUS.gff | \
+    grep -v WNMW0 | \
+    grep -v CM020459 | \
+    grep -v CM020460 | \
+    grep -v CM020461 | \
     grep -v CM020462 | \
-    awk '{print $1"_RagTag\t"$4-1000"\t"$5+1000"\t"$2}'> reference/GCA_009819605.1/genes/all_autosomal_annotations.bed
-
- zcat reference/GCA_009819605.1/genes/GCA_009819605.1_bSteHir1.pri.augustus.gtf.gz | \
-    sort | \
-    grep -v WNM | \
-    grep -v CM020500 | \
     grep -v CM020463 | \
+    grep -v contig_ | \
+    grep -v ntLink_ | \
+    bedtools sort -i - > angsd/augustus_autosomal_predictions.bed
+
+bedtools merge -i angsd/augustus_autosomal_predictions.bed > angsd/augustus_autosomal_predictions_merged.bed
+```
+ To account for linkage, the window size for these regions increased by 1kb on either side. The file was adusted in cases where the addition of a 1kb buffer extended beyond the start (n = 11) or end of the chromosome (n = 7).
+```
+awk '{print $1"\t"$2-1000"\t"$3+1000}' angsd/augustus_autosomal_predictions_merged.bed > angsd/augustus_autosomal_predictions_merged_add1kb.bed
+```
+To define putatively neutral sites for analyses, we extracted the complement regions as below.  
+```
+awk -v OFS='\t' {'print $1,$2'} reference/Katie_5kb_ragtag.fa.fai | \
+    grep -v WNMW0 | \
+    grep -v CM020459 | \
+    grep -v CM020460 | \
+    grep -v CM020461 | \
     grep -v CM020462 | \
-    awk '{print $1"_RagTag\t"$4-1000"\t"$5+1000"\t"$2}' >> reference/GCA_009819605.1/genes/all_autosomal_annotations.bed
+    grep -v CM020463 | \
+    grep -v contig_ | \
+    grep -v ntLink_ > reference/Katie_autosome_lengths.txt
 
-sort -k1,1 -k2,2n reference/GCA_009819605.1/genes/all_autosomal_annotations.bed > reference/GCA_009819605.1/genes/all_autosomal_annotations_sorted.bed
+bedtools complement \
+    -i angsd/augustus_autosomal_predictions_merged_add1kb.bed \
+    -g reference/Katie_autosome_lengths.txt > angsd/Katie_neutral_sites.bed
 ```
-These files were then merged, leaving roughly 22,173 annotated genes.  
-```
-bedtools merge \
-    -i reference/GCA_009819605.1/genes/all_autosomal_annotations_sorted.bed \
-    -c 1,2,3 -o distinct > reference/GCA_009819605.1/genes/all_autosomal_annotations_merged.bed
-```
-The complement regions were extracted with BEDtools and used to filter regions for ANGSD.  
-```
-awk -v OFS='\t' {'print $1,$2'} reference/TI_scaffolded_as_CT.fasta.gz.fai > reference/TI_scaffolded_as_CT_bedtools_genome.txt
+This left 27,337 regions covering 562,663,009 bp for analyses. This corresponds to roughly 47% of the genome.  
 
-bedtools complement -i reference/GCA_009819605.1/genes/all_autosomal_annotations_sorted.bed \
-    -g reference/TI_scaffolded_as_CT_bedtools_genome.txt | grep -v sf | grep -v WNM | \
-    grep -v CM020500 | grep -v CM020463 | grep -v CM020462 > angsd_scaffolded/TI_scaffolded_neutral_regions.bed
-```
-No regions within 1kb of the start/end of the chromosome were retained to account for poor assembly at repetitive regions of the genome. This left 22,167 regions covering 615,256,912 bp for analyses. This corresponds to roughly 52% of the genome.  
-
-This file was then indexed for use with the `angsd -sites` option.  
+This file was then indexed for ANGSD with `angsd sites`.  
 ```
 angsd sites index TI_scaffolded_neutral_regions.bed
 ```
-
-We also extracted the autosomoal chromosomes from the common tern assembly, and renamed them with the same names in the tara iti reference assembly. This was so we could polarize the site frequency spectrum with common tern as the ancestral state. 
-
 ## Common tern ancestral alleles
-It is useful to have the ancestral state for some of the analyses below. To this end, we aligned short reads from the common tern genome assembly to the tara iti genome and converted to a Fasta file. We opted this approach over using the common tern genome assembly directly as the chromosomes had different sizes and were not compatible with ANGSD methods ([brief discussion here](https://www.biostars.org/p/298013/)). This also has the benefit of ensuring that comparisons are made between the same regions, regardless of potential rearrangements. The reads for common tern were trimmed, aligned, and duplicates marked in the same manner as the fairy tern population short-reads. Would only work when using a file as input to command as below.  
+It is important to have the ancestral state for some of the analyses below. To this end, we aligned short reads from the common tern genome assembly to the tara iti genome and converted to a Fasta file. We opted this approach over using the common tern genome assembly directly as the chromosomes had different sizes and were not compatible with ANGSD methods ([brief discussion here](https://www.biostars.org/p/298013/)). This also has the benefit of ensuring that comparisons are made between the same regions, regardless of potential rearrangements. The reads for common tern were trimmed, aligned, and duplicates marked in the same manner as the fairy tern population short-reads. Would only work when using a file as input to command as below.  
 ```
 ls ${DIR}bSteHir1_markdup_autosomes.bam > ${ANGSD}CT.list
 
@@ -91,34 +88,29 @@ angsd -P 16 -doFasta 1 -doCounts 1 -out ${ANGSD}bSteHir1_ancestral -b ${ANGSD}CT
 ### F statistics
 To estimate relative levels of inbreeding and account for the high likelihood that tara iti do not conform to Hardy-Weinberg Equilibrium (HWE), we first generated population specific genotype likelihoods for input into [ngsF](https://github.com/mfumagalli/ngsTools) v1.2.0-STD. The outputs of these analyses can also be used as a prior for populations that are not in hardy-weinburg equilibrium (HWE).  
 ```
-for POP in AU TI GLOBAL
+for POP in AU TI KI
     do
     if [[ "${POP}" == "AU" ]]
         then
-        angsd -P 26 -b AU.list -ref $REF -out inbreeding/AU -sites ${region} \
+        angsd -P 26 -b AU.list -ref $REF -anc $ANC -sites $SITES -out inbreeding/AU \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
             -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
     elif [[ "${POP}" == "TI" ]]
         then
-        angsd -P 26 -b TI.list -ref $REF -out inbreeding/TI -sites ${region} \
+        angsd -P 26 -b TI.list -ref $REF -anc $ANC -sites $SITES -out inbreeding/TI \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 16 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
+            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 90 -setMaxDepth 280 -doCounts 1 \
             -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
-        else
-        angsd -P 26 -b GLOBAL.list -ref $REF -out inbreeding/GLOBAL -sites ${region} \
+    else
+        angsd -P 26 KI.list -ref $KREF -anc $KANC -sites $SITES -out inbreeding/KI \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 35 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
+            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 90 -setMaxDepth 280 -doCounts 1 \
             -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
     fi
 done
-
-angsd -P 26 -b TI.list -ref $REF -out inbreeding/TI \
-    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ 20 -minInd 16 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
 ```
-This left 1,839,732 sites in the `AU` dataset, 677,440 sites in the `TI` dataset, and XXX,XXX sites in the `GLOBAL` dataset upon the completion of ANGSD. Next, `ngsF` was used to estimate inbreeding. First, an initial search was performed. The below was perfomed for each of the `AU`, `TI`, and `GLOBAL` data sets upon the completion of ANGSD.  
+Next, `ngsF` was used to estimate inbreeding. First, an initial search was performed. The below was perfomed for each of the `AU`, `TI`, and `GLOBAL` data sets upon the completion of ANGSD.  
 ```
 for POP in AU TI
     do
@@ -143,23 +135,28 @@ cat ${ANGSD}inbreeding/TI.indF
 ```
 We also estimated per-individual inbreeding with [ngsF-HMM](https://github.com/mfumagalli/ngsTools) v1.1.0.
 ```
-
+Pending XXX
 ```
 ### Relatedness
-We estimated relatedness among individuals with [ngsRelate](https://github.com/ANGSD/NgsRelate).  
+We estimated relatedness, specifically the D<sub>xy</sub> metric, among individuals with [ngsRelate](https://github.com/ANGSD/NgsRelate).  
 ```
 for POP in AU TI
     do
     zcat inbreeding/${POP}.mafs.gz | cut -f 6 | sed 1d > inbreeding/${POP}_freqs
     NSITES=$(zcat inbreeding ${POP}.mafs.gz | tail -n +2 | wc -l)
-    ngsRelate -g inbreeding/${POP}.glf -n 19 -f inbreeding/${POP}_freqs -O inbreeding/${POP}_relatedness
+    if [[ "$POP" == "AU" ]]
+        then
+        ngsRelate -g inbreeding/${POP}.glf -n 19 -f inbreeding/${POP}_freqs -O inbreeding/${POP}_relatedness
+        else
+        ngsRelate -g inbreeding/${POP}.glf -n 15 -f inbreeding/${POP}_freqs -O inbreeding/${POP}_relatedness
+    fi
 done
 ```
 
 ### Runs of Homozygosity
 Two methods were used to estimate runs of homozygosity, [ROHAN](https://github.com/grenaud/rohan) and an approach using ANGSD.  
 
-For ROHAN, all PCR-duplicates were removed as recommended.  
+For ROHAN (and SV discovery), all PCR-duplicates were removed as recommended.  
 ```
 samtools markdup -@16 -r --write-index *_markdup_autosomes.bam *_rohan.bam
 ```
@@ -167,17 +164,27 @@ And the Ts/Tv ratio was estimated as a prior for ROHan with VCFtools v0.1.15 usi
 ```
 for POP in AU TI
     do
-    angsd -P 16 -b GLOBAL.list -ref $REF -out ${ANGSD}samtools/genotypes/GLOBAL \
-        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-        -minMapQ 20 -minQ 20 -minInd 37 -setMinDepth 300 -setMaxDepth 630 -doCounts 1 \
-        -doPost 1 -doBcf 1 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 10 --ignore-RG 0
-    vcftools --bcf ${ANGSD}gatk/genotypes/global_GATK_genotypes.bcf \
-        --TsTv-summary --out ${ANGSD}gatk/genotypes/${POP}_GATK_genotypes
+    if [[ "$POP" == "AU" ]]
+        then
+        angsd -P 24 -b ${ANGSD}${POP}.list -ref $REF -out ${ANGSD}samtools/genotypes/${POP}_genotypes \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
+            -doPost 1 -doBcf 1 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 10 --ignore-RG 0
+        vcftools --bcf ${ANGSD}samtools/genotypes/${POP}_genotypes.bcf \
+            --TsTv-summary --out ${ANGSD}samtools/genotypes/${POP}_genotypes
+        else
+        angsd -P 24 -b ${ANGSD}${POP}.list -ref $REF -out ${ANGSD}samtools/genotypes/${POP}_genotypes \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 90 -setMaxDepth 280 -doCounts 1 \
+            -doPost 1 -doBcf 1 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 10 --ignore-RG 0
+        vcftools --bcf ${ANGSD}samtools/genotypes/${POP}_genotypes.bcf \
+            --TsTv-summary --out ${ANGSD}samtools/genotypes/${POP}_genotypes
+    fi
 done
 ```
 This resulted in a TsTv ratio of 1.871 for tara iti and 2.507 for Australian fairy tern.  
 
-Finally, ROHan was run on for a subset of individuals. The `--rohmu` flag was varied to ensure regions containing ROHs were detected as per [this discussion](https://github.com/grenaud/ROHan/issues/12#issuecomment-1935539239).
+Finally, ROHan was run on for a subset of individuals. The `--rohmu` flag was varied to ensure regions containing ROHs were detected as per [this discussion](https://github.com/grenaud/ROHan/issues/12#issuecomment-1935539239). The value of 5 x 10<sup>-5</sup> and a window size of 50kb equates 2.5 heterozygous genotypes within this window. This is a potentially stringent cutoff. For comparisions with similar estimates in threatened rattlesnake populations (*Sistrurus catenatus* and *S. tergeminus*) by [Ochoa et al. 2021](https://doi.org/10.1111/mec.16147), we also performed the analyses below with a value of 5 x 10<sup>-4</sup>.  
 ```
 ./faSomeRecords reference/Katie_5kb_ragtag.fa Katie_autosomes2.bed reference/Katie_ragtag_autosomes2.fa
 samtools faidx reference/Katie_ragtag_autosomes2.fa
@@ -198,7 +205,7 @@ for BAM in *_rohan.bam
     date
 done
 ```
-We then prepared summary plots for ROHs, one file each for tara iti and Australian fairy tern containing all ROH sizes calculated using the mid. estimates of heterozygosity. 
+We then prepared summary plots for ROHs, one file each for tara iti and Australian fairy tern containing all ROH sizes calculated using the mid. estimates of heterozygosity.  
 ```
 for FILE in rohan/rohmu_5e5/*.mid.hmmrohl.gz
     do
@@ -211,7 +218,7 @@ for FILE in rohan/rohmu_5e5/*.mid.hmmrohl.gz
     fi
 done 
 ```
-We also parsed a file with subsetting the summary files of all individuals. 
+We also parsed a file with subsetting the summary files of all individuals.  
 ```
 printf "Sample\tPerc_in_ROH\tMean_ROH_size\tPopulation\n" > ROH_summary.txt
 
@@ -231,17 +238,6 @@ done
 
 ### Global Heterozygosity
 Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Essentially, this estimate is a proportion of heterozygous genotypes / genome size (excluding regions of the genome with low confidence). Unlike other runs of ANGSD, individual BAMs are used to estimate hetereozygosity, which is simply second value in the SFS/AFS.  
-
-```
-angsd -P 16 -b GLOBAL.list -ref $ref -out ${ANGSD}gatk/genotypes/global_GATK_genotypes -uniqueOnly 1 \
-    -remove_bads 1 -only_proper_pairs 1 -trim 0 -baq 1 -minMapQ 20 -minQ 20 -minInd 37 \
-    -setMinDepth 300 -setMaxDepth 630 -doCounts 1 -skipTriallelic 1 -doBcf 1 -GL 2 \
-    -doPost 1 -doMaf 1 -doGeno 10 --ignore-RG 0 -doMajorMinor 1 -doMaf 1 -SNP_pval 1e-3
-
-vcftools --bcf ${ANGSD}samtools/genotypes/global_SAMtools_genotypes.bcf \
-    --TsTv-sumamry \
-    --out ${ANGSD}samtools/genotypes/global_SAMtools_genotypes
-```
 ```
 for SAMP in ${BAM}*_markdup_autosomes.bam
     do
@@ -438,4 +434,28 @@ plot2(yc,ylab="AU",xlab="NZ")
 #plot2(yj,ylab="YRI",xlab="JPT")
 #x11() #(not needed if you use Rstudio)
 #plot2(jc,ylab="JPT",xlab="CEU")
+```
+## Putative Genetic Load
+Given that the tara iti reference genome could not be annotated with RNA sequencing, ensure a robust and conservative assessment of genetic load that is translatable across species comparisons, we limited load estimates to highly conserved BUSCO genes in the fairy tern species complex (*Sterna nereis* spp.) and kakī (*Himantopus novazealandiae*) for comparison.  
+
+For the fairy tern and kakī reference genomes, we concatenated single copy BUSCO sequences into species specific `GFF` files.
+```
+cat Katies_genome/ragtag_busco/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.gff > Katies_genome/ragtag_busco/merged_single_copy_busco_sequences.gff
+cat kaki_genome/busco_output/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.gff > kaki_genome/busco_output/merged_single_copy_busco_sequences.gff
+```
+We then sorted and each file and converted them to `BED` format with [BEDtools](https://bedtools.readthedocs.io/en/latest/)v2.30.  
+```
+bedtools sort -i Katies_genome/ragtag_busco/merged_single_copy_busco_sequences.gff > angsd/single_copy_BUSCO.bed
+bedtools merge -i angsd/single_copy_BUSCO.bed > angsd/single_copy_BUSCO.merged.bed
+```
+We then filtered the `BED` file to excluded unplaced scaffolds and sex chromosomes (consistant with above population analyses) and indexed this `BED` file with ANGSD.
+```
+BUSCO=${ANGSD}single_copy_BUSCO.merged.bed
+
+for POP in AU TI
+    do
+    angsd -b CEBO.filelist -sites $BUSCO -out ${ANGSD}load/${POP} \
+        -minMapQ 20 -minQ 20 -gl 1 -domajorminor 1 -snp_pval 1e-6 -domaf 1 \
+        -doGlf 3 -doGeno 4 -doPost 1 -postCutoff 0.95
+done
 ```
