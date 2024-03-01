@@ -1,4 +1,5 @@
 # Structural Variant Discovery and Analysis
+Structural variant (SV) analyses followed a similar pipeline where variant discovery, variant quality filtering, and initial genotyping was performed under recommended pipelines. High quality genotypes representing homozygous reference, heterozygous and homozygous alternate calls were then plotted with SAMplot and evaluated using PlotCritic for call refinement. Calls passing evaluation with PlotCritic were then merged using SURVIVOR and used to construct a genome graph with the VG tools suite. Detailed methods for each of these steps using Delly, Manta and Smoove are outlined below.  
 ## Delly Discovery
 SV discovery with common tern and scaffolded tara iti assemblies
 ```
@@ -24,12 +25,12 @@ bcftools view -i 'FILTER=="PASS" & INFO/PRECISE==1 & SVTYPE!="BND"' \
 Number of SVs called and number passing filtering thresholds:  
 |    SV Type   | Number Called | Filtered Count |
 | ------------ | ------------- | -------------- |
-|  Breakends   |      750      |        0       |
-|  Deletions   |     7,933     |      7,321     |
-| Duplications |      602      |       190      |
+|  Breakends   |      748      |        0       |
+|  Deletions   |     7,929     |      7,318     |
+| Duplications |      599      |       190      |
 |  Insertions  |      992      |       992      |
-|  Inversions  |    15,642     |      6,105     |
-|  **Total**   |  **25,919**   |   **14,608**   |
+|  Inversions  |    15,640     |      6,103     |
+|  **Total**   |  **25,908**   |   **14,603**   |
 
 These final SVs were then merged with the other datasets and used as input into the VG graph as outlined below.  
 ## Manta Discovery
@@ -45,8 +46,8 @@ configManta.py --referenceFasta $REF --callRegions reference/Katie_autosomes2.be
     --bam AU14_nodup_autosomes.bam --bam AU17_nodup_autosomes.bam --bam AU20_nodup_autosomes.bam --bam AU21_nodup_autosomes.bam \
     --bam AU23_nodup_autosomes.bam --bam AU24_nodup_autosomes.bam --bam AU25_nodup_autosomes.bam --bam AU27_nodup_autosomes.bam \
     --bam AU28_nodup_autosomes.bam --bam AU29_nodup_autosomes.bam --bam AU30_nodup_autosomes.bam --bam AU33_nodup_autosomes.bam \
-    --bam SND05_nodup_autosomes.bam --bam SND06_nodup_autosomes.bam --bam SND15_nodup_autosomes.bam --bam SP02_nodup_autosomes.bam \
-    --bam SP03_nodup_autosomes.bam --bam SP07_nodup_autosomes.bam --bam TI21_nodup_autosomes.bam --bam TI22_nodup_autosomes.bam \
+    --bam SND04_nodup_autosomes.bam --bam SND05_nodup_autosomes.bam --bam SND06_nodup_autosomes.bam --bam SND15_nodup_autosomes.bam \
+    --bam SP02_nodup_autosomes.bam --bam SP03_nodup_autosomes.bam --bam SP07_nodup_autosomes.bam --bam TI21_nodup_autosomes.bam \
     --bam TI36_nodup_autosomes.bam --bam TI37_nodup_autosomes.bam --bam TI38_nodup_autosomes.bam --bam TI40_nodup_autosomes.bam \
     --bam TI41_nodup_autosomes.bam
 ``` 
@@ -86,7 +87,7 @@ done
 ```
 Then calls for all individuals were merged into a single file.  
 ```
-smoove merge --name 01_raw_calls --fasta ${REF} --outdir smoove/ smoove/raw_calls/*.genotyped.vcf.gz
+smoove merge --name 01_raw_merged --fasta ${REF} --outdir smoove/ smoove/raw_calls/*.genotyped.vcf.gz
 ```
 After merging, `INFO/IMPRECISE` and all breakend (`SVTYPE=BND`) calls were excluded.
 ```
@@ -96,12 +97,12 @@ bcftools view -i 'INFO/IMPRECISE==0 & INFO/SVTYPE!="BND"' -O v -o smoove/02_smoo
 The raw calls initially comprised of:  
 |    SV Type   | Number Called | Filtered Count |
 | ------------ | ------------- | -------------- |
-|  Breakends   |     5,904     |        0       |
-|  Deletions   |     6,023     |       666      |
-| Duplications |     1,268     |       59       |
+|  Breakends   |     5,908     |        0       |
+|  Deletions   |     6,046     |       664      |
+| Duplications |     1,267     |       58       |
 |  Insertions  |       0       |        0       |
-|  Inversions  |    11,813     |       345      |
-|  **Total**   |  **25,008**   |    **1,070**   |
+|  Inversions  |    11,812     |       345      |
+|  **Total**   |  **25,033**   |    **1,067**   |
 
 ## Validating Filtered SV Calls
 [SAMplot](https://github.com/ryanlayer/samplot) and [plotCritic](https://github.com/jbelyeu/PlotCritic) vX.X were used to evaluate SV calls from Delly, Smoove and Manta. However, SAMplot is only able to plot Deletions, Duplications and Inversions. For this step, sites for each of the tools were first extracted with BCFtools.  
