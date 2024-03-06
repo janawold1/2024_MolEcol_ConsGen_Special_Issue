@@ -163,6 +163,7 @@ We then plot the count density.
 ```{r indiv SFS density, include=FALSE}
 barplot(sfs, beside=TRUE, legend=("AU", "NZ"), names=1:19, main = "realSFS non-ancestral sites", args.legend = list(x="topleft"))
 ```
+
 Then we plotted the polymorphic sites.
 ```{r indiv SFS plot, include=FALSE}
 sfsPoly <- t(apply(sfs[,-19], 1, nnorm))
@@ -173,7 +174,7 @@ barplot(AUsfs[c(-1, -length(AUsfs))])
 ```
 
 Not sure where this is from, but as a place holder:
-````{r placeholder, include=FALSE}
+```{r placeholder, include=FALSE}
 
 yc<-scan("GLOBAL_subset.sfs")
     source("plot2dSFS.R")
