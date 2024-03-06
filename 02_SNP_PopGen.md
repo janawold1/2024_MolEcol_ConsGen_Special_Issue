@@ -18,12 +18,12 @@ done
 ```
 Courtesy of scripts provided by [@mfumagalli](https://github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md), the distributions of these sites were visualised with `Rscript ~/ngsTools/Scripts/plotQC.R GLOBAL.qc` and meaningful filtering thresholds were identified. Below is a table outlining filtering thresholds for subsequent population analyses.
 
-|        Population        |minimum mapQ|minimum Q|minimum depth|maximum depth|minimum individuals|
-| ------------------------ | ---------- | ------- | ----------- | ----------- | ----------------- |
-|Australian Fairy Tern (WA)|     20     |    20   |     170     |     360     |        19         |
-|         Tara iti         |     20     |    20   |     90      |     280     |        15         |
-|          Global          |     20     |    20   |     204     |     630     |        34         |
-|           Kakī           |     20     |    20   |     XXX     |     XXX     |        XX         |
+|        Population        |minimum mapQ|minimum Q|minimum depth|maximum depth|Number of individuals|
+| ------------------------ | ---------- | ------- | ----------- | ----------- | ------------------- |
+|Australian Fairy Tern (WA)|     20     |    20   |     200     |     420     |         19          |
+|         Tara iti         |     20     |    20   |     90      |     280     |         15          |
+|     Global fairy tern    |     20     |    20   |     204     |     630     |         34          |
+|           Kakī           |     20     |    20   |     XXX     |     XXX     |         XX          |
 
  Below is code run for analyses performed on alignments of fairy terns to the tara iti reference scaffolded using the common tern assembly (see [00_genome_assembly.md](https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/00_genome_assembly.md)) and alignments of kakī to the high-quality reference assembly for this species (see [here](https://www.genomics-aotearoa.org.nz/our-work/completed-projects/high-quality-genomes) for details). All analyses for each group were performed in a similar manner for downstream comparisons. Quality thresholds were adjusted as per the table above.  
 
@@ -94,18 +94,18 @@ for POP in AU TI KI
         then
         angsd -P 26 -b AU.list -ref $REF -anc $ANC -sites $SITES -out inbreeding/AU \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
+            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
             -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
     elif [[ "${POP}" == "TI" ]]
         then
         angsd -P 26 -b TI.list -ref $REF -anc $ANC -sites $SITES -out inbreeding/TI \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 90 -setMaxDepth 280 -doCounts 1 \
+            -minMapQ 20 -minQ 20 -minInd 12 -setMinDepth 90 -setMaxDepth 280 -doCounts 1 \
             -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
     else
         angsd -P 26 KI.list -ref $KREF -anc $KANC -sites $SITES -out inbreeding/KI \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 90 -setMaxDepth 280 -doCounts 1 \
+            -minMapQ 20 -minQ 20 -minInd 12 -setMinDepth 90 -setMaxDepth 280 -doCounts 1 \
             -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
     fi
 done
@@ -207,16 +207,23 @@ done
 ```
 We then prepared summary plots for ROHs, one file each for tara iti and Australian fairy tern containing all ROH sizes calculated using the mid. estimates of heterozygosity.  
 ```
-for FILE in rohan/rohmu_5e5/*.mid.hmmrohl.gz
+for FILE in rohmu_5e5/AU*_subset.mid.hmmrohl.gz
     do
-    BASE=$(basename $FILE .mid.hmmrohl.gz)
-    if [[ "$BASE" == "AU"* ]]
-        then
-        zcat $FILE | tail -n+2 | cut -f5 >> au_roh.txt
-        else
-        zcat $FILE | tail -n+2 | cut -f5 >> nz_roh.txt
-    fi
-done 
+    BASE=$(basename $FILE _subset.mid.hmmrohl.gz)
+    zcat $FILE | tail -n+2 | cut -f 5 | awk -v SAMP="$BASE" '{ if ( $1 <= 200000 ) len="short_ROH";
+        else if ( $1 > 200000 && $1 <= 700000 ) len ="medium_ROH";
+        else len ="long_ROH";
+        print SAMP"\t"$1"\t"len"\tAU"; }' >> ROHs.tsv
+done
+
+for FILE in rohmu_5e5/{SND,SP,TI}*_subset.mid.hmmrohl.gz
+    do
+    BASE=$(basename $FILE _subset.mid.hmmrohl.gz)
+    zcat $FILE | tail -n+2 | cut -f 5 | awk -v SAMP="$BASE" '{ if ( $1 <= 200000 ) len="short_ROH";
+        else if ( $1 > 200000 && $1 <= 700000 ) len ="medium_ROH";
+        else len ="long_ROH";
+        print SAMP"\t"$1"\t"len"\tNZ"; }' >> ROHs.tsv
+done
 ```
 We also parsed a file with subsetting the summary files of all individuals.  
 ```
@@ -246,30 +253,25 @@ for SAMP in ${BAM}*_markdup_autosomes.bam
     realSFS ${ANGSD}heterozygosity/${BASE}.saf.idx > heterozygosity/${BASE}_est.ml
 done
 ```
-Once the SFS was estimated for each individual, the number of sites was estimated from the sum of all scaffold sizes included in the bam file.
-```
-
-```
-Individual heterozygosity was then output to a file.
+Once the SFS was estimated for each individual, the number of sites was estimated from the sum of all scaffold sizes included in the bam file and output to a file.
 ```
 SIZE=$(awk '{sum+=$3}; END {print sum}' Katie_autosomes2.bed)
 echo $SIZE
 
+NEUTRAL=$(awk '{print $3 - $2}' Katie_neutral_sites.bed | awk '{sum+=$1}; END {print sum}')
+
 printf "Sample\tHeterozygosity\tTool\tPopulation\n" > ${ANGSD}individual_het.tsv 
 
-for TOOL in gatk samtools
+for SAMP in ${ANGSD}${TOOL}/heterozygosity/*_est.ml
     do
-    for SAMP in ${ANGSD}${TOOL}/heterozygosity/*_est.ml
-        do
-        BASE=$(basename $SAMP _est.ml)
-        HET=$(awk '{print $2/1088797119}' $SAMP)
-        if [[ "$BASE" == *"AU"* ]]
-            then
-            printf "$BASE\t$HET\t$TOOL\tAU\n" >> ${ANGSD}individual_het.tsv
-            else
-            printf "$BASE\t$HET\t$TOOL\tNZ\n" >> ${ANGSD}individual_het.tsv
-        fi
-    done
+    BASE=$(basename $SAMP _est.ml)
+    HET=$(awk '{print $2/1088797119}' $SAMP)
+    if [[ "$BASE" == *"AU"* ]]
+        then
+        printf "$BASE\t$HET\t$TOOL\tAU\n" >> ${ANGSD}individual_het.tsv
+        else
+        printf "$BASE\t$HET\t$TOOL\tNZ\n" >> ${ANGSD}individual_het.tsv
+    fi
 done
 ```
 
@@ -342,16 +344,26 @@ angsd -P 16 -b ${ANGSD}AU.list -ref $REF -anc $ANC -out ${ANGSD}samtools/sfs/AU 
     -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
     -GL 1 -doSaf 1
 
+angsd -P 16 -b ${ANGSD}AU.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}neutral/sfs/AU \
+    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+    -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 170 -setMaxDepth 360 -doCounts 1 \
+    -GL 1 -doSaf 1
+
 angsd -P 16 -b ${ANGSD}TI.list -ref $REF -anc $ANC -out ${ANGSD}samtools/sfs/TI \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-    -minMapQ 20 -minQ20 -minInd 16 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
+    -minMapQ 20 -minQ20 -minInd 15 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
+    -GL 1 -doSaf 1
+
+angsd -P 16 -b ${ANGSD}TI.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}neutral/sfs/TI \
+    -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+    -minMapQ 20 -minQ20 -minInd 15 -setMinDepth 100 -setMaxDepth 280 -doCounts 1 \
     -GL 1 -doSaf 1
 ```
 First, bootstrapped estimates were generated under resampling for confidence intervals of nucleotide diversity and F-statistics.
 ```
-realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/AU.saf.idx > ${ANGSD}${TOOL}/sfs/AU_100boots.sfs
-realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/TI_100boots.sfs
-realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/AU.saf.idx ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/GLOBAL_100boots.sfs
+realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/AU.saf.idx > ${ANGSD}${TOOL}/sfs/AU_100boots_resample.sfs
+realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/TI_100boots_resample.sfs
+realSFS -P 40 -bootstrap 100 -resample_chr 1 -tole 1e-6 ${ANGSD}${TOOL}/sfs/AU.saf.idx ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/GLOBAL_100boots_resample.sfs
 ```
 Then a standard run of `realSFS` was performed for comparison as there remains some discussion around the performance of relative differences in the resampling methods for bootstrapping ([see here](https://github.com/ANGSD/angsd/pull/195)).  
 ```
@@ -413,27 +425,6 @@ We also ran:
 ```
 realSFS fst stats2 distance/total_fst.idx \
     -tole 1e-6 -anc $ANC -win 50000 -step 10000 -whichFST 1 > distance/total_fst2_results.tsv
-```
-```
- ##run in R
-yc<-scan("GLOBAL_subset.sfs")
-    source("plot2dSFS.R")
-
-plot2<-function(s,...){
-    dim(s)<-c(39,37)
-    s[1]<-NA
-    s[39,37]<-NA
-s<-s/sum(s,na.rm=T)
-
-    pal <- color.palette(c("darkgreen","#00A600FF","yellow","#E9BD3AFF","orange","red4","darkred","black"), space="rgb")
-    pplot(s/sum(s,na.rm=T),pal=pal,...)
-}
-
-plot2(yc,ylab="AU",xlab="NZ")
-#x11() # (not needed if you use Rstudio)
-#plot2(yj,ylab="YRI",xlab="JPT")
-#x11() #(not needed if you use Rstudio)
-#plot2(jc,ylab="JPT",xlab="CEU")
 ```
 ## Putative Genetic Load
 Given that the tara iti reference genome could not be annotated with RNA sequencing, ensure a robust and conservative assessment of genetic load that is translatable across species comparisons, we limited load estimates to highly conserved BUSCO genes in the fairy tern species complex (*Sterna nereis* spp.) and kakī (*Himantopus novazealandiae*) for comparison.  

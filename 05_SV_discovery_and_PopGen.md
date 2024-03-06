@@ -61,19 +61,19 @@ convertInversion.py ~/anaconda3/envs/samtools/bin/samtools $REF \
 Then all reads had to pass all 'hard' filtering thresholds and have 'PRECISE' breakpoints.  
 ```
 bcftools view -i 'INFO/SVTYPE!="BND" & FILTER="PASS" & IMPRECISE=0' \
-    -O z -o manta/results/variants/diploid_INV_filtered.vcf.gz \
+    -O v -o manta/results/variants/diploid_INV_convert_filtered.vcf \
     manta/results/variants/diploid_INV_convert.vcf
 ```
 
 The raw calls initially comprised of:  
 |    SV Type   | Number Called | Converting Inversions | Filtered Count |
 | ------------ | ------------- | --------------------- | -------------- |
-|  Breakends   |    20,658     |          742          |        0       |
-|  Deletions   |     7,070     |         7,070         |      6,158     |
-| Duplications |      663      |          663          |       420      |
-|  Insertions  |     4,065     |         4,065         |      3,845     |
-|  Inversions  |       0       |         9,958         |      8,208     |
-|  **Total**   |  **32,456**   |      **22,498**       |   **18,631**   |  
+|  Breakends   |     4,858     |          728          |        0       |
+|  Deletions   |     7,135     |         7,135         |      6,199     |
+| Duplications |      666      |          666          |       425      |
+|  Insertions  |     4,207     |         4,207         |      3,973     |
+|  Inversions  |       0       |         2,065         |      1,508     |
+|  **Total**   |  **16,866**   |      **14,801**       |   **12,105**   |  
 
 ## Smoove Discovery
 
@@ -110,21 +110,62 @@ The raw calls initially comprised of:
 for tool in delly manta smoove
     do
     echo "EXTRACTING SITES FROM $tool..."
-    bcftools query -i 'SVTYPE!="INS"' -f '%CHROM\t%POS\t%END\t%SVTYPE' ${tool}/02_filteredSVs.vcf > ${tool}/samplot_sites.tsv
+    bcftools query -i 'SVTYPE!="INS" & GT="RR"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | cut -f1-8 > ${tool}/samplot_homozygousRef_sites.tsv
+    bcftools query -i 'SVTYPE!="INS" & GT="het"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | cut -f1-8 > ${tool}/samplot_het_sites.tsv
+    bcftools query -i 'SVTYPE!="INS" & GT="AA"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | cut -f1-8 > ${tool}/samplot_homozygousAlt_sites.tsv
 done
 ```
-Then used as input for plotting for 6 Australian fairy terns (3 female, 3 male) and 6 tara iti (3 female, 3 male).  
+Then used as input for plotting for 4 fairy tern samples.  
 ```
 for tool in delly manta smoove
     do
-    while read -r line
+    for geno in homRef homAlt het
         do
-        printf "STARTED RUNNING SAMPLOT FOR $tool AT "
-        date
+            while read -r line
+                do
+                    printf "STARTED RUNNING SAMPLOT FOR $tool AT "
+                    date
+                    chrom=$(echo $line | awk '{print $1}')
+                    start=$(echo $line | awk '{print $2}')
+                    end=$(echo $line | awk '{print $3}')
+                    type=$(echo $line | awk '{print $4}')
+                    samp1=$(echo $line | awk '{print $5}')
+                    samp2=$(echo $line | awk '{print $6}')
+                    samp3=$(echo $line | awk '{print $7}')
+                    samp4=$(echo $line | awk '{print $8}')
+                    samplot plot -n $samp1 $samp2 $samp3 $samp4 \
+                        -b align/nodup/${samp1}_nodup_autosomes.bam \
+                        align/nodup/${samp2}_nodup_autosomes.bam \
+                        align/nodup/${samp3}_nodup_autosomes.bam \
+                        align/nodup/${samp4}_nodup_autosomes.bam \
+                        -o ${tool}/samplot_outputs/${geno}/${chrom}_${start}_${end}_${type}.png \
+                        -c ${chrom} -s ${start} -e ${end} -t ${type}
+            done < ${tool}/samplot_${geno}_sites.tsv
+    done
+done
+```
+However, not all SV calls had support for a minimum of 4 individuals. These calls were filtered out (e.g., `awk { if (NR==5) {print $0} } > samplot_het_n1.tsv`) and plotted in a similar manner as above.
+
+PlotCritic vX.X was used to evaluate whether calls had support prior to their merging and inclusion in the final genome graph.  
+```
+
 ```
 ## Merging Filtered SV Calls
+Calls demonstrating sufficient support for analyses were then merged into a final VCF using SURVIVOR. Calls that passed evaluation in PlotCritic were included, regardless whether they were found in only one SV disovery tool.  
+```
+ls dir/to/delly/calls/final.vcf > survivor_file.txt
+ls dir/to/manta/calls/final.vcf >> survivor_file.txt
+ls dir/to/smoove/calls/final.vcf >> survivor_file.txt
 
-
+SURVIVOR merge 
+```
+This left a total of:
+|    SV Type   | Count | 
+| :----------: | :---: |
+|  Deletions   |  XXX  |
+| Duplications |  XXX  |
+|  Inversions  |  XXX  | 
+|   **TOTAL**  |**XXX**|
 # Graph Construction with VG
 
 
@@ -135,6 +176,7 @@ for tool in delly manta smoove
 
 
 # Population Analysis
+
  
 ### SVs and ROH Correlations - May be for another day
  May need to consider multi-species comparisons. 
