@@ -23,14 +23,14 @@ bcftools view -i 'FILTER=="PASS" & INFO/PRECISE==1 & SVTYPE!="BND"' \
     -O b -o delly/02_SV_filtered.bcf delly/01_raw_merged_calls.bcf
 ```
 Number of SVs called and number passing filtering thresholds:  
-|    SV Type   | Number Called | Filtered Count |
-| ------------ | ------------- | -------------- |
-|  Breakends   |      748      |        0       |
-|  Deletions   |     7,929     |      7,318     |
-| Duplications |      599      |       190      |
-|  Insertions  |      992      |       992      |
-|  Inversions  |    15,640     |      6,103     |
-|  **Total**   |  **25,908**   |   **14,603**   |
+|    SV Type   | Number Called | Filtered Count | Curated SVs |
+| ------------ | ------------- | -------------- | ----------- |
+|  Breakends   |      748      |        0       |      0      |
+|  Deletions   |     7,929     |      7,318     |    6,033    |
+| Duplications |      599      |       190      |      0      |
+|  Insertions  |      992      |       992      |      0      |
+|  Inversions  |    15,640     |      6,103     |      0      |
+|  **Total**   |  **25,908**   |   **14,603**   |  **6,033**  |
 
 These final SVs were then merged with the other datasets and used as input into the VG graph as outlined below.  
 ## Manta Discovery
@@ -66,14 +66,14 @@ bcftools view -i 'INFO/SVTYPE!="BND" & FILTER="PASS" & IMPRECISE=0' \
 ```
 
 The raw calls initially comprised of:  
-|    SV Type   | Number Called | Converting Inversions | Filtered Count |
-| ------------ | ------------- | --------------------- | -------------- |
-|  Breakends   |     4,858     |          728          |        0       |
-|  Deletions   |     7,135     |         7,135         |      6,199     |
-| Duplications |      666      |          666          |       425      |
-|  Insertions  |     4,207     |         4,207         |      3,973     |
-|  Inversions  |       0       |         2,065         |      1,508     |
-|  **Total**   |  **16,866**   |      **14,801**       |   **12,105**   |  
+|    SV Type   | Number Called | Converting Inversions | Filtered Count | Curated SVs |
+| ------------ | ------------- | --------------------- | -------------- | ----------- |
+|  Breakends   |     4,858     |          728          |        0       |      0      |
+|  Deletions   |     7,135     |         7,135         |      6,199     |    4,575    |
+| Duplications |      666      |          666          |       425      |      0      |
+|  Insertions  |     4,207     |         4,207         |      3,973     |      0      |
+|  Inversions  |       0       |         2,065         |      1,508     |      0      |
+|  **Total**   |  **16,866**   |      **14,801**       |   **12,105**   |  **4,575**  |
 
 ## Smoove Discovery
 
@@ -95,22 +95,25 @@ bcftools view -i 'INFO/IMPRECISE==0 & INFO/SVTYPE!="BND"' -O v -o smoove/02_smoo
 ```
 
 The raw calls initially comprised of:  
-|    SV Type   | Number Called | Filtered Count |
-| ------------ | ------------- | -------------- |
-|  Breakends   |     5,908     |        0       |
-|  Deletions   |     6,046     |       664      |
-| Duplications |     1,267     |       58       |
-|  Insertions  |       0       |        0       |
-|  Inversions  |    11,812     |       345      |
-|  **Total**   |  **25,033**   |    **1,067**   |
+|    SV Type   | Number Called | Filtered Count | Curated SVs |
+| ------------ | ------------- | -------------- | ----------- |
+|  Breakends   |     5,908     |        0       |      0      |
+|  Deletions   |     6,046     |       664      |     643     |
+| Duplications |     1,267     |       58       |      0      |
+|  Insertions  |       0       |        0       |      0      |
+|  Inversions  |    11,812     |       345      |      0      |
+|  **Total**   |  **25,033**   |    **1,067**   |   **643**   |
 
 ## Validating Filtered SV Calls
-[SAMplot](https://github.com/ryanlayer/samplot) and [plotCritic](https://github.com/jbelyeu/PlotCritic) vX.X were used to evaluate SV calls from Delly, Smoove and Manta. However, SAMplot is only able to plot Deletions, Duplications and Inversions. For this step, sites for each of the tools were first extracted with BCFtools.  
+[SAMplot](https://github.com/ryanlayer/samplot) and [plotCritic](https://github.com/jbelyeu/PlotCritic) were used to evaluate SV calls from Delly, Smoove and Manta. However, SAMplot is only able to plot Deletions, Duplications and Inversions. In addition, except in a few instances, recovering the full sequences representing inversion and duplication haplotypes from short-read data alone is challenging. Only delection calls were curated for genome graph construction as they generally have clear support (read depth, and split reads) and obvious breakpoints. These are important aspects for accurate genotyping from graphs.  
+
+Given the limitations of short-read data alone to resolve insertions, inversions, and duplications at the haplotype level, we limited our graphs to deletions. We required that deletion calls had to have exact breakpoints, and that they were supported by evidence from both split-read and read depth variation. There was no minimum or maximum size limitations.  
+
+Deletions were curated for each of the three tools independently prior to merging. To generate input files representing heterozygous and homozygous alternate sites for these SVs, we focused on genotypes from each of the tools as they could provide clues as to which samples provided support for SV calls.  
 ```
 for tool in delly manta smoove
     do
     echo "EXTRACTING SITES FROM $tool..."
-    bcftools query -i 'SVTYPE!="INS" & GT="RR"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | cut -f1-8 > ${tool}/samplot_homozygousRef_sites.tsv
     bcftools query -i 'SVTYPE!="INS" & GT="het"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | cut -f1-8 > ${tool}/samplot_het_sites.tsv
     bcftools query -i 'SVTYPE!="INS" & GT="AA"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | cut -f1-8 > ${tool}/samplot_homozygousAlt_sites.tsv
 done
@@ -119,7 +122,7 @@ Then used as input for plotting for 4 fairy tern samples.
 ```
 for tool in delly manta smoove
     do
-    for geno in homRef homAlt het
+    for geno in {homAlt,het}_n{1..4}
         do
             while read -r line
                 do
@@ -146,44 +149,69 @@ done
 ```
 However, not all SV calls had support for a minimum of 4 individuals. These calls were filtered out (e.g., `awk { if (NR==5) {print $0} } > samplot_het_n1.tsv`) and plotted in a similar manner as above.
 
-PlotCritic vX.X was used to evaluate whether calls had support prior to their merging and inclusion in the final genome graph.  
+[PlotCritic](https://github.com/jbelyeu/PlotCritic) vX.X was used to evaluate whether calls had both read depth and split-read support prior to merging. But SMOOVE doesn't include the reference allele in the output VCF. To correct this, we normalised the SMOOVE output.  
 ```
-
+bcftools norm --check-ref s --fasta-ref $REF -O z -o smoove/07_smoove_plotcritic_norm.vcf.gz smoove/06_smoove_plotcritic.vcf
+bcftools sort -O z -o smoove/08_smoove_plotcritic_norm.sorted.vcf.gz smoove/07_smoove_plotcritic_norm.vcf.gz
+tabix -p vcf smoove/08_smoove_plotcritic_norm.sorted.vcf.gz
 ```
-## Merging Filtered SV Calls
-Calls demonstrating sufficient support for analyses were then merged into a final VCF using SURVIVOR. Calls that passed evaluation in PlotCritic were included, regardless whether they were found in only one SV disovery tool.  
+Then all three call sets were merged.  
 ```
-ls dir/to/delly/calls/final.vcf > survivor_file.txt
-ls dir/to/manta/calls/final.vcf >> survivor_file.txt
-ls dir/to/smoove/calls/final.vcf >> survivor_file.txt
-
-SURVIVOR merge 
+bcftools merge -m none -O z -o vg/DEL_calls.vcf.gz \
+    delly/05_delly_plotcritic.vcf.gz \
+    manta/03_manta_plotcritic.vcf.gz \
+    smoove/08_smoove_plotcritic_norm.sorted.vcf.gz
+tabix -p vcf DEL_calls.vcf.gz
 ```
-This left a total of:
-|    SV Type   | Count | 
-| :----------: | :---: |
-|  Deletions   |  XXX  |
-| Duplications |  XXX  |
-|  Inversions  |  XXX  | 
-|   **TOTAL**  |**XXX**|
-# Graph Construction with VG
+This left 7,958 total deletions for genotyping.  
 
+# Graph Construction and alignment
+Graph construction, alignment and genotyping was performed using the VG toolsuite.  
+```
+vg autoindex \
+	--workflow giraffe \
+	-r ${dir}graphs/Jane_by_chromosome/Jane_chromosome_7.fa \
+	-v ${dir}variants/SVs/sniffles/sniffles_chr7_PRECISE_minSUPP5.vcf.gz \
+	-p ${dir}graphs/sniffles_total_giraffe -t 16
+```
+And finally, mapping can be done by passing the required indices.  
+```
+for fq2 in reads/*_R2.fq
+    do
+    indiv=$(basename $fq2 _R2.fq)
+    printf "STARTED ALIGNING $indiv TO GRAPH AT "
+    date
+    vg giraffe \
+	    -Z vg/fairy_tern.giraffe.gbz \
+	    -m vg/fairy_tern.min \
+	    -d vg/fairy_tern.dist \
+	    -f reads/${indiv}_R1.fq \
+	    -f reads/${indiv}_R2.fq > vg/${indiv}_giraffe.gam
+```
+Then the output `.gbz` from `vg autoindex` was converted to `.xg` format for variant calls.
+```
+vg convert -x --drop-haplotypes \
+	vg/fairy_tern.giraffe.gbz > vg/fairy_tern.xg
+```
+And individual SV genotyping was performed.  
+```
+vg pack --threads 16 -x vg/fairy_tern.xg \
+	-g vg/${indiv}_giraffe.gam \
+	-Q 5 -o vg/${indiv}_giraffe.pack
 
-## Population-scale Genotyping
-
-
-## Genotype Filtering
-
+vg call --genotype-snarls ${dir}graphs/giraffe_maps/sniffles_giraffe_chr7.xg \
+	-k ${dir}graphs/giraffe_maps/${indiv}_sniffles_chr7.pack > ${dir}graphs/giraffe_maps/${indiv}_sniffles_chr7.vcf
+```
 
 # Population Analysis
-
  
 ### SVs and ROH Correlations - May be for another day
- May need to consider multi-species comparisons. 
- Same or different patterns observed in SNPs vs SVs? Genotyping rate will likely be low - highlight as an area of growth and how their inclusion in demographic stuff will be key. 
+May need to consider multi-species comparisons.  
 
- Similar patters off heterozygosity, Fst and structure?
+Same or different patterns observed in SNPs vs SVs? Genotyping rate will likely be low - highlight as an area of growth and how their inclusion in demographic stuff will be key.  
 
- To what extent do these SVs represent functional variation? This is the value add to the Sunnocks frame - We can't get at funcgtional variation so we look at all these indirect methods of inferring adaptive potential 
+Similar patters off heterozygosity, Fst and structure?
 
- Knowing number of fixed differences.  
+To what extent do these SVs represent functional variation? This is the value add to the Sunnocks frame - We can't get at funcgtional variation so we look at all these indirect methods of inferring adaptive potential  
+
+Knowing number of fixed differences.

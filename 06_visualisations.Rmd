@@ -2,7 +2,7 @@
 ## Overview
 In this `.Rmd` we are visualising many of the outputs from the SNP- and SV-based population analyses for fairy tern populations in Western Australian and Aotearoa New Zealand.   
 ```{r setup, include=FALSE}
-setwd("C:/Users/Jana/Desktop/tara_iti")
+setwd("C:/Users/Jana/Git_Repos/2024_MolEcol_ConsGen_Special_Issue/data/")
 
 library(tidyr)
 library(ggplot2)
@@ -16,31 +16,7 @@ pal <- get_pal("Kotare")
 get_pal("Kotare")
 print_pal(pal)
 ```
-## Heterozygosity
-Comparisons of individual heterozygosity as estimated by ANGSD.  
-```{r heterozygosity, include=FALSE}
-indiv_het <- read.csv("angsd/individual_het.tsv", sep="\t", header = TRUE)
-
-total_het_fig <- filter(indiv_het, Tool == 'samtools') %>%
-    ggplot(aes(x=Population, y = Heterozygosity, fill = Population)) +
-        geom_violin() +
-        theme_light() +
-        labs(x = "Population", y = "Observed Heterozygosity", title = "Individual Heterozygosity") +
-        scale_fill_manual(values = c("AU" = "#E5BF86","NZ" = "#287DAB")) 
-ggsave('plots/SNP_samtools_heterozygosity.png', total_het_fig, device = "png", dpi = 600)
-ggsave('plots/SNP_samtools_heterozygosity.pdf', total_het_fig, device = "pdf", dpi = 600)
-
-neutral_het_fig <- filter(indiv_het, Tool == 'NEUTRAL') %>%
-    ggplot(aes(x=Population, y = Heterozygosity, fill = Population)) +
-        geom_violin() +
-        theme_light() +
-        labs(x = "Population", y = "Observed Heterozygosity", title = "Individual Heterozygosity") +
-        scale_fill_manual(values = c("AU" = "#E5BF86","NZ" = "#287DAB")) 
-ggsave('plots/SNP_neutral_heterozygosity.png', neutral_het_fig, device = "png", dpi = 600)
-ggsave('plots/SNP_neutral_heterozygosity.pdf', neutral_het_fig, device = "pdf", dpi = 600)
-```
-
-### Runs of Homozygosity
+## Runs of Homozygosity
 Create a one-column file (e.g., scat_rohs.txt) with ROH sizes across all samples. 
 ```{r ROH clusters, include=FALSE}
 roh <- read.csv("ROHs.tsv", sep = "\t", header = TRUE)
@@ -130,15 +106,45 @@ dev.off()
 ```
 Temporary ROH Stats
 ```{r ROH plots and summary, include=FALSE}
+library(patchwork)
+
 head(roh)
 filter(roh, Population == 'AU') %>% select(ROH_len) %>% summary()
 filter(roh, Population == 'NZ') %>% select(ROH_len) %>% summary()
 
-ROH_size_plot <- ggplot(roh, aes(x = Population, y = ROH_len, fill = Population)) +
-    geom_violin() +
+roh$ROH_class <- factor(roh$ROH_class, level=c('short_ROH', 'medium_ROH', 'long_ROH'))
+
+ROH_bar_data <- roh %>%
+    group_by(Sample, ROH_class, Population) %>%
+    tally %>%
+    group_by(ROH_class, Population) %>%
+    summarise_at(vars(n), list(name = mean))
+
+ROH_point_data <- roh %>%
+    group_by(Sample, ROH_class, Population) %>%
+    tally
+
+ROH_bar_plot <- ggplot(ROH_bar_data, aes(x = ROH_class, y = name, fill = Population)) +
+    geom_bar(alpha = 0.7, position = "dodge", stat = "identity") +
     theme_light() +
-    labs(x = "Population", y = "ROH Size") +
-    scale_fill_manual(values = c("AU" = "#E5BF86","NZ" = "#287DAB"))
+    ylim(0,800) +
+    labs(x = "ROH Class", y = "ROH Count") +
+    scale_fill_manual(values = c("AU" = "#E5BF86","NZ" = "#287DAB")) 
+    theme(panel.background = element_rect(fill = "transparent"))
+
+
+ROH_point_plot <- ggplot(ROH_point_data, aes(x = ROH_class, y = n, color = Population)) +
+    geom_point(size = 2.5, position = position_dodge(width = 0.9)) +
+    theme_light() +
+    ylim(0, 800) +
+    labs(x = "ROH Class", y = "ROH Count") +
+    scale_color_manual(values = c("AU" = "#E5BF86","NZ" = "#287DAB")) 
+    theme(panel.background = element_rect(fill = "transparent"))
+
+patch_design <- c(area(1, 1, 1, 1),
+                  area(1, 1, 1, 1))
+
+ROH_bar_plot + ROH_point_plot
 ggsave( 'plots/average_ROH_length.png', ROH_size_plot, device = "png")
 ```
 MORE ROH PLOTTING
@@ -147,68 +153,4 @@ roh %>%
     groupby(Sample) %>%
     ggplot(aes(x = ROH_class)) +
         geom_bar()
-```
-# Site Frequency Spectrum (SFS)
-## Individual SFS
-First we plotted the SFS for Australian fairy tern and tara iti for comparison. Here we import the results of the Australian fairy tern (`AU.sfs`) and tara iti (`TI.sfs`) site frequency spectrum output from `realSFS` and filtered to include variable alleles.  
-```{r indiv SFS, include=FALSE}
-nnorm <- function(x) x/sum(x)
-
-sfs <- rbind(
-    AU=scan("AU.sfs")[-1],
-    NZ=scan("TI.sfs")[-1])
-colnames(sfs) <- 1:19
-```
-We then plot the count density.
-```{r indiv SFS density, include=FALSE}
-barplot(sfs, beside=TRUE, legend=("AU", "NZ"), names=1:19, main = "realSFS non-ancestral sites", args.legend = list(x="topleft"))
-```
-
-Then we plotted the polymorphic sites.
-```{r indiv SFS plot, include=FALSE}
-sfsPoly <- t(apply(sfs[,-19], 1, nnorm))
-barplot(sfsPoly, beside = TRUE, legend = c("AU", "NZ"), names = 1:18, main = "realSFS Polymorphic Sites")
-
-barplot(sfs[c(-1, -length(sfs))])
-barplot(AUsfs[c(-1, -length(AUsfs))])
-```
-
-Not sure where this is from, but as a place holder:
-```{r placeholder, include=FALSE}
-
-yc<-scan("GLOBAL_subset.sfs")
-    source("plot2dSFS.R")
-
-plot2<-function(s,...){
-    dim(s)<-c(39,37)
-    s[1]<-NA
-    s[39,37]<-NA
-s<-s/sum(s,na.rm=T)
-
-    pal <- color.palette(c("darkgreen","#00A600FF","yellow","#E9BD3AFF","orange","red4","darkred","black"), space="rgb")
-    pplot(s/sum(s,na.rm=T),pal=pal,...)
-}
-
-plot2(yc,ylab="AU",xlab="NZ")
-#x11() # (not needed if you use Rstudio)
-#plot2(yj,ylab="YRI",xlab="JPT")
-#x11() #(not needed if you use Rstudio)
-#plot2(jc,ylab="JPT",xlab="CEU")
-```
-
-
-## Fst
-Here I plotted the Fst in sliding windows along chromosome 1.
-```{r chromosome Fst, include=FALSE}
-fst <- read.csv("angsd/chr1_fst_50KBwindows.tsv", sep = '\t', header = TRUE)
-
-ggplot(fst, aes(x = fst, fill = replicate)) +
-    geom_histogram() +
-    theme_light()
-mid <- mean(fst$fst)
-fst_fig <- filter(fst, replicate == 'rep100') %>%
-    ggplot(aes(x = pos, y = fst)) +
-        geom_point(alpha = 0.25) +
-        theme_light()
-ggsave('plots/SNP_samtools_chr1_fst.png', fst_fig, device = "png", dpi = 600)
 ```
