@@ -1,6 +1,6 @@
 # Illumina Read Processing and Alignment
 ## Initial QC and Trimming
-Initial sequencing results were visualised with FastQCvX.X and MultiQCvX.X. Reads were trimmed using [TrimGalorevX.X](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/).  
+Initial sequencing results were visualised with FastQCv0.12.1 and MultiQCv1.13. Reads were trimmed using [TrimGalorevX.X](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/).  
 ```
 ref=/dir/to/reference.fasta
 dir=/dir/to/reads/
@@ -8,34 +8,34 @@ reports=/dir/to/fastq_out/
 trim_out=/dir/to/trimmmed_reads/
 
 for samp in ${dir}*R1.fastq.gz
-do
-base=$(basename ${samp} _R1.fastq.gz)
-echo "Running Trim_galore for ${base}..."
-trim_galore --paired \
-    --nextseq 28 \
-    --2colour 20 \
-    --cores 8 \
-    --fastqc_args "--nogroup --outdir ${reports} --threads 32" \
-    --length 50 \
-    --output_dir ${trim_out} \
-    --clip_R1 20 \
-    --clip_R2 20 \
-    --three_prime_clip_R1 5 \
-    --three_prime_clip_R2 5 \
-    --retain_unpaired \
-    --length_1 55 \
-    --length_2 55 \
-    ${dir}${base}_R1.fastq.gz \
-    ${dir}${base}_R2.fastq.gz
+    do
+    base=$(basename ${samp} _R1.fastq.gz)
+    echo "Running Trim_galore for ${base}..."
+    trim_galore --paired \
+        --nextseq 28 \
+        --2colour 20 \
+        --cores 8 \
+        --fastqc_args "--nogroup --outdir ${reports} --threads 32" \
+        --length 50 \
+        --output_dir ${trim_out} \
+        --clip_R1 20 \
+        --clip_R2 20 \
+        --three_prime_clip_R1 5 \
+        --three_prime_clip_R2 5 \
+        --retain_unpaired \
+        --length_1 55 \
+        --length_2 55 \
+        ${dir}${base}_R1.fastq.gz \
+        ${dir}${base}_R2.fastq.gz
 done
 ```
 ## Alignment
-For population analyses, Illumina short-reads were aligned, PCR-duplicates removed, and alignment statistics estimated in the same manner for both Australian fairy tern and tara iti (outlined below). All manipulation of alignment files was performed with [SAMtools v1.16](https://www.htslib.org/).  
+For population analyses, Illumina short-reads were aligned, PCR-duplicates removed, and alignment statistics estimated in the same manner for both fairy tern populations and kakī. All manipulation of alignment files was performed with [SAMtools v1.16](https://www.htslib.org/).  
 ```
-#!/bin/bash -e
-REF=~/reference/Katie_5kb_ragtag.fa
-INPUT=~/reads/
-OUTPUT=~/alignments/
+REF=/dir/to/reference.fasta
+INPUT=/dir/to/reads/
+OUTPUT=/dir/to/alignments/
+
 for LIB in lib1 lib2 LIC001 LIC002
     do
     for SAMP in ${INPUT}${LIB}/*_R1.fq.gz
@@ -122,7 +122,7 @@ For ease of comparisons, mosdepth outputs were also plotted with:
 python ~/anaconda3/envs/mosdepth/scripts/plot-dist.py ${data}nodup_bam_stats/*.global.dist.txt
 ```
 
-Three additional scaffolds `CM020459.1`, `CM020460.1`, and `CM02061.1` were excluded from downstream analyses as these scaffolds consistently had read depths much higher than expected and likely represents improperly assembled representations of these chromosomes. A new bedfile, cleverly named `Katie_autosomes2.bed`, was used to remove these scaffolds prior to analyses.  
+Three additional fairy tern scaffolds `CM020459.1`, `CM020460.1`, and `CM02061.1` were excluded from downstream analyses as these scaffolds consistently had read depths much higher than expected and likely represents improperly assembled representations of these chromosomes. A new bedfile, cleverly named `Katie_autosomes2.bed`, was used to remove these scaffolds prior to analyses.  
 ```
 for SAMP in ${DIR}*_autosomes.bam
     do
@@ -136,4 +136,4 @@ for SAMP in ${DIR}*_autosomes.bam
     echo "FINISHED PROCESSING ${BASE}!"
 done
 ```
- The BAM files originally filtered for autosomomal scaffolds were subsequently overwritten with the newly filtered bam files. Thus all files denoted as `*_{markdup,nodup}_autosomes.bam` contain only 22 scaffolds.  
+ The BAM files originally filtered for autosomomal scaffolds were subsequently overwritten with the newly filtered bam files. Thus all files denoted as `*_{markdup,nodup}_autosomes.bam` contain only 22 scaffolds for fairy terns.  

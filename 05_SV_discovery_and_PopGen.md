@@ -186,21 +186,21 @@ for fq2 in reads/*_R2.fq
 	    -m vg/fairy_tern.min \
 	    -d vg/fairy_tern.dist \
 	    -f reads/${indiv}_R1.fq \
-	    -f reads/${indiv}_R2.fq > vg/${indiv}_giraffe.gam
+	    -f reads/${indiv}_R2.fq > vg/gam/${indiv}_giraffe.gam
 ```
 Then the output `.gbz` from `vg autoindex` was converted to `.xg` format for variant calls.
 ```
 vg convert -x --drop-haplotypes \
-	vg/fairy_tern.giraffe.gbz > vg/fairy_tern.xg
+	vg/fairy_tern.giraffe.gbz > vg/genotyping/fairy_tern.xg
 ```
 And individual SV genotyping was performed.  
 ```
 vg pack --threads 16 -x vg/fairy_tern.xg \
-	-g vg/${indiv}_giraffe.gam \
-	-Q 5 -o vg/${indiv}_giraffe.pack
+	-g vg/gam/${indiv}_giraffe.gam \
+	-Q 5 -o vg/genotyping/${indiv}_giraffe.pack
 
-vg call --genotype-snarls ${dir}graphs/giraffe_maps/sniffles_giraffe_chr7.xg \
-	-k ${dir}graphs/giraffe_maps/${indiv}_sniffles_chr7.pack > ${dir}graphs/giraffe_maps/${indiv}_sniffles_chr7.vcf
+vg call --genotype-snarls vg/genotyping/fairy_tern.xg \
+	-k vg/genotyping/${indiv}_giraffe.pack > vg/genotyping/${indiv}_giraffe.vcf
 ```
 
 # Population Analysis

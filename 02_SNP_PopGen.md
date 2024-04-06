@@ -452,6 +452,22 @@ psmc_plot.pl -u 3.69e-09 -g 3 psmc/AU psmc/out/AU*_combined.psmc
 psmc_plot.pl -u 3.69e-09 -g 3 psmc/TI psmc/out/TI*_combined.psmc
 psmc_plot.pl -u 7.38e-09 -g 6 psmc/KK psmc/out/KK*_combined.psmc
 ```
+## Contemporary N<sub>e</sub> Inference with StairwayPlot2
+
+## Population Demography and Connectivity Inference with GADMA
+[GADMA](https://gadma.readthedocs.io/en/latest/user_manual/input_data/snp_data_format.html) leverages the joint SFS to infer the demographic history of multiple populations. It can implement [dadi](https://bitbucket.org/gutenkunstlab/dadi/), [moments](https://github.com/MomentsLD/moments), [momi2](https://github.com/popgenmethods/momi2/), and [momentsLD](https://github.com/MomentsLD/moments).  
+
+GADMA can take multiple input formats. Here we estimated the joint SFS in ANGSD and realSFS as above, with the exception that the `dadi` flag was on when running realSFS. This output was then converted with a perl script [realSFS2dadi.pl](https://github.com/z0on/2bRAD_denovo/blob/master/realsfs2dadi.pl).
+```
+realSFS dadi -ref $REF -anc $ANC AU.saf.idx TI.saf.ids -sfs AU.sfs -sfs TI.sfs > GLOBAL.dadi
+realSFS2dadi.pl GLOBAL.dadi 19 15 > GLOBAL_GADMA_SNPformat.txt
+```
+GADMA is relatively straightforward and easy to run. A parameter file defining specific settings can be used as input. One important parameter is `sequence length`, which denotes the number of sites used to build the data (SFS in our case). Fortunately, the realSFS programme includes this (`nSites`) as part of its progress output. For the neutral dataset this was 512,061,918 sites while it was 976,823,680 sites for the whole-genome data set.  
+
+Because the SNPs in either SFS were not filtered for linkage, we updated the paramfile to reflect this and provided a directory for bootstrapping. This has important implications for model selection methods, see [here](https://gadma.readthedocs.io/en/latest/user_manual/input_data/input_data.html#extra-information-about-data) for more information.  
+
+As with PSMC and StairwayPlot2 above, we ran GADMA with a conservative mutation rate of 1.23e-9 and a generation time of 3 years. Finally, the Selection and Dominance options were set to true prior to running with `gadma -p GADMA_neutral.params -o GADMA_neutral_moments/`.  
+
 ## Putative Genetic Load
 Given that the tara iti reference genome could not be annotated with RNA sequencing, ensure a robust and conservative assessment of genetic load that is translatable across species comparisons, we limited load estimates to highly conserved BUSCO genes in the fairy tern species complex (*Sterna nereis* spp.) and kakī (*Himantopus novazealandiae*) for comparison.  
 
