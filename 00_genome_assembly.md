@@ -140,7 +140,7 @@ In the end, the genome assembly generated using a minimum read length of 5kb was
         <figcaption>Tara iti draft assembly mapped to the VGP assembly for Common tern. In this dotplot, the tara iti assembly is represented along the y-axis and the common tern assembly is along the x-axis.</figcaption>
 </figure>
 
-Unsurprisingly, the *de novo* tara iti assembly was not chromosomally resolved. Because common terns and fairy terns are relatively related species and demonstrate high synteny, we used the common tern as a reference to scaffold the tara iti assembly with [RagTag](https://github.com/malonge/RagTag) vX.X to maximise our ability to call structural variants.  
+Unsurprisingly, the *de novo* tara iti assembly was not chromosomally resolved. Because common terns and fairy terns are relatively related species and demonstrate high synteny, we used the common tern as a reference to scaffold the tara iti assembly with [RagTag](https://github.com/malonge/RagTag) v2.1.0 to maximise our ability to call structural variants.  
 ```
 ragtag.py scaffold -o reference/Katie_ragtag/ reference/common_tern.fasta reference/Katie.fasta
 ```

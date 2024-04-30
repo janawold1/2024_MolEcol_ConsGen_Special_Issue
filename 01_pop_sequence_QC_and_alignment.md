@@ -1,6 +1,6 @@
 # Illumina Read Processing and Alignment
 ## Initial QC and Trimming
-Initial sequencing results were visualised with FastQCv0.12.1 and MultiQCv1.13. Reads were trimmed using [TrimGalorevX.X](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/).  
+Initial sequencing results were visualised with FastQCv0.12.1 and MultiQCv1.13. Reads were trimmed using [TrimGalore](https://www.bioinformatics.babraham.ac.uk/projects/trim_galore/) v0.6.10.  
 ```
 ref=/dir/to/reference.fasta
 dir=/dir/to/reads/
@@ -30,7 +30,7 @@ for samp in ${dir}*R1.fastq.gz
 done
 ```
 ## Alignment
-For population analyses, Illumina short-reads were aligned, PCR-duplicates removed, and alignment statistics estimated in the same manner for both fairy tern populations and kakī. All manipulation of alignment files was performed with [SAMtools v1.16](https://www.htslib.org/).  
+For population analyses, Illumina short-reads were aligned, PCR-duplicates removed, and alignment statistics estimated in the same manner for both fairy tern populations and kakī. All manipulation of alignment files was performed with [SAMtools](https://www.htslib.org/) v1.16.  
 ```
 REF=/dir/to/reference.fasta
 INPUT=/dir/to/reads/
@@ -97,7 +97,7 @@ done
 ```
 Once BAMs were processed, autosomal chromosomes were extracted for population analyses. Mean mapping quality and alignment depth was then estimated using [QualiMap](http://qualimap.conesalab.org/) v2.3.  
 ```
-cut -f1,2 TKatie_5kb_ragtag.fa.fai | grep "CM020" | grep -v CM020462.1_RagTag | grep -v CM020463.1_RagTag | awk '{print $1"\t1\t"$2} > Katie_autosomes.bed
+cut -f1,2 Katie_5kb_ragtag.fa.fai | grep "CM020" | grep -v CM020462.1_RagTag | grep -v CM020463.1_RagTag | awk '{print $1"\t1\t"$2} > Katie_autosomes.bed
 
 for SAMP in ${DIR}*_markdup.bam
     do
@@ -137,3 +137,5 @@ for SAMP in ${DIR}*_autosomes.bam
 done
 ```
  The BAM files originally filtered for autosomomal scaffolds were subsequently overwritten with the newly filtered bam files. Thus all files denoted as `*_{markdup,nodup}_autosomes.bam` contain only 22 scaffolds for fairy terns.  
+
+ A similar process was performed for kakī alignments, with some minor differences. Because the kakī genome was assembled and scaffolded without the use of a chromosomally assembled genome, we identified scaffolds > 2Mb in length that demonstrated sequence coverage consistent with larger scaffolds. This indicated that Scaffolds 1-28 likely represent relatively well assembled chromosomes. These, exlucding the Z sex chromosome (Scaffold 4) were used in all downstream analyses.  
