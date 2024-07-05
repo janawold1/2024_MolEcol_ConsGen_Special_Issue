@@ -2,6 +2,7 @@
 [ANGSDv0.935](https://bioconda.github.io/recipes/angsd/README.html?highlight=angsd) and ngsTools were used to estimate summary statistics for Australian fairy tern (*Sternual nereis nereis*) sampled from Western Australia and tara iti (*S. nereis davisae*) from Northland, NZ. The methods implemented below were modified from a helpful wiki provided by [@mfumagalli](https://github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md).  
 
 Before progressing with analyses, an initial look at the distribution of quality scores and per-site depth on a global and individual-based basis. PCR duplicates were marked and sex chromosomes were excluded for SNP-based population analyses.  
+
 ```
 ls ${DIR}{AU,SND,SP,TI}*_markdup_autosomes.bam > ${ANGSD}GLOBAL.list
 ls ${DIR}{SND,SP,TI}*_markdup_autosomes.bam > ${ANGSD}TI.list
@@ -29,7 +30,7 @@ Courtesy of scripts provided by [@mfumagalli](https://github.com/mfumagalli/ngsT
 |Australian Fairy Tern (WA)|     20     |    20   |     200     |     420     |         19          |
 |         Tara iti         |     20     |    20   |     120     |     280     |         15          |
 |     Global fairy tern    |     20     |    20   |     272     |     630     |         34          |
-|           Kakī           |     20     |    20   |     700     |    1,200    |         26          |
+|           Kakī           |     20     |    20   |     700     |    1,200    |         24          |
 
  Below is code run for analyses performed on alignments of fairy terns to the tara iti reference scaffolded using the common tern assembly (see [00_genome_assembly.md](https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/00_genome_assembly.md)) and alignments of kakī to the high-quality reference assembly for this species (see [here](https://www.genomics-aotearoa.org.nz/our-work/completed-projects/high-quality-genomes) for details). All analyses for each group were performed in a similar manner for downstream comparisons. Quality thresholds were adjusted as per the table above.  
 
@@ -95,51 +96,7 @@ This file was then indexed for ANGSD with `angsd sites`.
 ```
 angsd sites index TI_scaffolded_neutral_regions.bed
 ```
-## Ancestral alleles
-It is important to have the ancestral state for some of the analyses below. To this end, we used short reads from the VGP common tern genome assembly ([*Sterna hirundo*](https://www.genomeark.org/vgp-all/Sterna_hirundo.html)) and short reads from the killdeer ([*Charadrius vociferus*](https://www.ncbi.nlm.nih.gov/sra/SRX328486[accn]) accession SRR943994) to polarise the site frequency spectrum for fairy terns and kakī respectively. We opted this approach over using these genome assemblies directly as the chromosomes had different sizes and were not compatible with ANGSD methods ([brief discussion here](https://www.biostars.org/p/298013/)). The reads for both common tern and avocet were trimmed, aligned, and duplicates marked in the same manner as the fairy tern and kakī population short-reads.  
-```
-angsd -P 16 -doFasta 1 -doCounts 1 -out ${ANGSD}bSteHir1_ancestral -i ${DIR}bSteHir1_markdup_autosomes.bam
-angsd -P 16 -doFasta 1 -doCounts 1 -out ${ANGSD}killdeer_ancestral -i ${DIR}avocet_markdup_autosomes.bam
-```
-## Relatedness Estimates
-To estimate relatedness among individuals within each of the three populations assessed, we first generated population specific genotype likelihoods.  
-```
-for POP in AU TI KI
-    do
-    if [[ "${POP}" == "AU" ]]
-        then
-        angsd -P 26 -b AU.list -ref $TREF -anc $ANC -sites $SITES -out inbreeding/AU \
-            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
-            -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
-    elif [[ "${POP}" == "TI" ]]
-        then
-        angsd -P 26 -b TI.list -ref $TREF -anc $ANC -sites $SITES -out inbreeding/TI \
-            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
-            -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
-    else
-        angsd -P 26 KI.list -ref $KREF -anc $KANC -sites $KSITES -out inbreeding/KI \
-            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 24 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
-            -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGlf 3
-    fi
-done
-```
-Next, we estimated relatedness, specifically the R<sub>AB</sub> metric, among individuals with [ngsRelate](https://github.com/ANGSD/NgsRelate).  
-```
-for POP in AU TI
-    do
-    zcat inbreeding/${POP}.mafs.gz | cut -f 7 | sed 1d > inbreeding/${POP}.freqs
-    if [[ "$POP" == "AU" ]]
-        then
-        ngsRelate -g inbreeding/${POP}.glf -n 19 -f inbreeding/${POP}.freqs -O inbreeding/${POP}_relatedness
-        else
-        ngsRelate -g inbreeding/${POP}.glf -n 15 -f inbreeding/${POP}.freqs -O inbreeding/${POP}_relatedness
-    fi
-done
-```
-
+## Diversity Indices
 ### Runs of Homozygosity 
 Two methods were used to estimate runs of homozygosity, [ROHAN](https://github.com/grenaud/rohan) and an approach using ANGSD.  
 
@@ -210,31 +167,31 @@ done
 ```
 We then prepared summary plots for ROHs, one file each for tara iti and Australian fairy tern containing all ROH sizes calculated using the mid. estimates of heterozygosity.  
 ```
-for FILE in rohmu_5e5/AU*_subset.mid.hmmrohl.gz
+for FILE in fairy_tern/rohmu_5e5/AU*_subset.mid.hmmrohl.gz
     do
     BASE=$(basename $FILE _subset.mid.hmmrohl.gz)
-    zcat $FILE | tail -n+2 | cut -f 5 | awk -v SAMP="$BASE" '{ if ( $1 <= 200000 ) len="short_ROH";
-        else if ( $1 > 200000 && $1 <= 700000 ) len ="medium_ROH";
-        else len ="long_ROH";
-        print SAMP"\t"$1"\t"len"\tAU"; }' >> ROHs.tsv
+    zcat $FILE | tail -n+2 | cut -f 2-5 | awk -v SAMP="$BASE" '{ if ( $4 <= 200000 ) len="Short ROH";
+        else if ( $4 > 200000 && $4 <= 700000 ) len ="Medium ROH";
+        else len ="Long ROH";
+        print SAMP"\t"$0"\t"len"\tAU"; }' >> ROHs.tsv
 done
 
-for FILE in rohmu_5e5/{SND,SP,TI}*_subset.mid.hmmrohl.gz
+for FILE in fairy_tern/rohmu_5e5/{SND,SP,TI}*_subset.mid.hmmrohl.gz
     do
     BASE=$(basename $FILE _subset.mid.hmmrohl.gz)
-    zcat $FILE | tail -n+2 | cut -f 5 | awk -v SAMP="$BASE" '{ if ( $1 <= 200000 ) len="short_ROH";
-        else if ( $1 > 200000 && $1 <= 700000 ) len ="medium_ROH";
-        else len ="long_ROH";
-        print SAMP"\t"$1"\t"len"\tNZ"; }' >> ROHs.tsv
+    zcat $FILE | tail -n+2 | cut -f 2-5 | awk -v SAMP="$BASE" '{ if ( $4 <= 200000 ) len="Short ROH";
+        else if ( $4 > 200000 && $4 <= 700000 ) len ="Medium ROH";
+        else len ="Long ROH";
+        print SAMP"\t"$0"\t"len"\tNZ"; }' >> ROHs.tsv
 done
 
-for FILE in rohmu_5e5/H0*_subset.mid.hmmrohl.gz
+for FILE in kaki/rohmu_default/H0*.mid.hmmrohl.gz
     do
-    BASE=$(basename $FILE _subset.mid.hmmrohl.gz)
-    zcat $FILE | tail -n+2 | cut -f 5 | awk -v SAMP="$BASE" '{ if ( $1 <= 200000 ) len="short_ROH";
-        else if ( $1 > 200000 && $1 <= 700000 ) len ="medium_ROH";
-        else len ="long_ROH";
-        print SAMP"\t"$1"\t"len"\tKI"; }' >> ROHs.tsv
+    BASE=$(basename $FILE .mid.hmmrohl.gz)
+    zcat $FILE | tail -n+2 | cut -f 2-5 | awk -v SAMP="$BASE" '{ if ( $4 <= 200000 ) len="Short ROH";
+        else if ( $4 > 200000 && $4 <= 700000 ) len ="Medium ROH";
+        else len ="Long ROH";
+        print SAMP"\t"$0"\t"len"\tKI"; }' >> ROHs.tsv
 done
 ```
 We also parsed a file with subsetting the summary files of all individuals.  
@@ -325,22 +282,28 @@ Rscript plotMDS.R -i ${ANGSD}distance/GLOBAL.mds \
 
 ## Summary Statistics
 ### Site Frequency Spectrum
-The intermediate site frequency spectrum estimated in the example above were used to generate SFS files with realSFS. Here, we are using the common tern as the ancestral state.  
+#### Inferring Ancestral alleles
+It is important to have the ancestral state for some of the analyses below. To this end, we used short reads sequenced by the [B10K](https://b10k.genomics.cn/species.html) consortium and stored by the China National GeneBank DataBase (CNGBdb) for large-bill tern ([*Phaetusa simplex*](https://db.cngb.org/search/organism/297813/) NCBI ID: 297813, CNGB Sample ID: CNS0103161, CNGB Experiment ID: CNX0082959) and black skimmer ([*Rhynchops niger*](https://db.cngb.org/search/organism/227184/) NCBI ID: 227184, CNGB Sample ID: CNS0103105, CNGB Experiment ID: CNX0082867 - CNX0082869) to polarise the site frequency spectrum for fairy terns. Whereas resequence data generated by [Galla et al XXX]() for the avocet (*XXX*) and generated by [Forsdick XXX](thesis link) for pied stilt (*Himantopus XXX*) were used to polarise kakī. This ([brief discussion](https://www.biostars.org/p/298013/)) outlines the benefit of using this approach for ANGSD-base analyses. The reads for each of the outgroups were trimmed, aligned, and duplicates marked in the same manner as the fairy tern and kakī population short-reads.  
 ```
-ANC=${ANGSD}bSteHir1_ancestral.fasta
-region=TI_scaffolded_neutral_regions.bed
-
+angsd -P 16 -doFasta 2 -doCounts 1 -out ${ANGSD}tern_ancestral -i ${DIR}merged_tern_markdup_autosomes.bam
+angsd -P 16 -doFasta 2 -doCounts 1 -out ${ANGSD}stilt_ancestral -i ${DIR}merged_stilt_markdup_autosomes.bam
+angsd -P 16 -doFasta 2 -doCounts 1 -out ${ANGSD}pied_alleles -b pied.list
+angsd -P 16 -doFasta 2 -doCounts 1 -out ${ANGSD}AFT_alleles -b AU.list
+```
+#### SFS Estimation
+We then estimated the SFS using ANGSD and realSFS.
+```
 for TOOL in samtools neutral
     do
     printf "STARTED RUNNING ANGSD FOR $TOOL DATA SET AT "
     date
     if [[ "$TOOL" == "samtools" ]]
         then
-        angsd -P 16 -b ${ANGSD}AU.list -ref $REF -anc $ANC -out ${ANGSD}samtools/sfs/AU \
+        angsd -P 16 -b ${ANGSD}AU.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/sfs/AU \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
             -GL 1 -doSaf 1
-        angsd -P 16 -b ${ANGSD}TI.list -ref $REF -anc $ANC -out ${ANGSD}samtools/sfs/TI \
+        angsd -P 16 -b ${ANGSD}TI.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/sfs/TI \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
             -GL 1 -doSaf 1
@@ -349,15 +312,15 @@ for TOOL in samtools neutral
             -minMapQ 20 -minQ20 -minInd 15 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
             -GL 1 -doSaf 1
     else
-        angsd -P 16 -b ${ANGSD}AU.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}neutral/sfs/AU \
+        angsd -P 16 -b ${ANGSD}AU.list -ref $TREF -anc $TANC -sites $TSITES -out ${ANGSD}neutral/sfs/AU \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
             -GL 1 -doSaf 1
-        angsd -P 16 -b ${ANGSD}TI.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}neutral/sfs/TI \
+        angsd -P 16 -b ${ANGSD}TI.list -ref $TREF -anc $TANC -sites $TSITES -out ${ANGSD}neutral/sfs/TI \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
             -GL 1 -doSaf 1
-        angsd -P 16 -b ${ANGSD}KI.list -ref $KREF -anc $KANC -sites $SITES -out ${ANGSD}neutral/sfs/KI \
+        angsd -P 16 -b ${ANGSD}KI.list -ref $KREF -anc $KANC -sites $KSITES -out ${ANGSD}neutral/sfs/KI \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ20 -minInd 15 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
             -GL 1 -doSaf 1
@@ -366,27 +329,29 @@ done
 ```
 Then `realSFS` was run to estimate the site frequency spectrum and theta-based statistics.  
 ```
-realSFS -P 40 -anc ${ANC} -ref ${REF} ${ANGSD}${TOOL}/sfs/AU.saf.idx > ${ANGSD}${TOOL}/sfs/AU.sfs
-realSFS -P 40 -anc ${ANC} -ref ${REF} ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/TI.sfs
+realSFS -P 40 -anc ${TANC} -ref ${TREF} ${ANGSD}${TOOL}/sfs/AU.saf.idx > ${ANGSD}${TOOL}/sfs/AU.sfs
+realSFS -P 40 -anc ${TANC} -ref ${TREF} ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/TI.sfs
 realSFS -P 40 -anc ${KANC} -ref ${KREF} ${ANGSD}${TOOL}sfs/KI.saf.idx > ${ANGSD}${TOOL}sfs/KI.sfs
-realSFS -P 40 -anc ${ANC} -ref ${REF} ${ANGSD}${TOOL}/sfs/AU.saf.idx ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/GLOBAL.sfs
-```
-Finally, for estimates of contemporary N<sub>e</sub>, we generated a SFS in *dadi* format. 
-```
-realSFS dadi -P 40 ${ANGSD}${TOOL}/sfs/AU.saf.idx ${ANGSD}${TOOL}/sfs/TI.saf.idx \
-    -sfs ${ANGSD}${TOOL}/sfs/AU.sfs -sfs ${ANGSD}${TOOL}/sfs/TI.sfs -anc $ANC \
-    -ref $REF > ${ANGSD}${TOOL}/sfs/GLOBAL.dadi
+realSFS -P 40 -anc ${TANC} -ref ${TREF} ${ANGSD}${TOOL}/sfs/AU.saf.idx ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/GLOBAL.sfs
 ```
 
-### Estimating F<sub>ST</sub>
-Here we estimate F<sub>ST</sub> between Australian fairy tern populations in Western Australia and tara iti. To do so, we leverage the site frequency spectrum (SFS) generated above. We did this for both the conventional method for estimating the SFS and the bootstrapped and resampled method. Below, we outline how we prepared the bootstrapped method to generate F<sub>ST</sub> statistics for each replicate.  
+### Estimating Population Differentiation (F<sub>ST</sub>)
+Here we estimate F<sub>ST</sub> between Australian fairy tern populations in Western Australia and tara iti. To do so, we leverage the site frequency spectrum (SFS) generated above.  
 ```
-realSFS fst index ${DIR}${TOOL}/sfs/AU.saf.idx ${DIR}${TOOL}/sfs/TI.saf.idx -sfs ${SFS} -fstout ${DIR}${TOOL}/distance/GLOBAL -whichFst 1
-realSFS fst stats2 ${DIR}${TOOL}/distance/GLOBAL.fst.idx -win 10000 -step 1000 > ${DIR}${TOOL}/distance/GLOBAL_fst2_10KBwindow_1KBstep.tsv
-realSFS fst stats2 ${DIR}${TOOL}/distance/GLOBAL.fst.idx -win 50000 -step 10000 > ${DIR}${TOOL}/distance/GLOBAL_fst2_50KBwindow_10KBstep.tsv
-realSFS fst stats distance/GLOBAL_fst.idx -tole 1e-6 -anc $ANC -win 50000 -step 10000 -whichFst 1 > ${ANGSD}${TOOL}distance/GLOBAL_fst1_50KBwindow_10KBstep.tsv
+realSFS fst index ${DIR}${TOOL}/sfs/AU.saf.idx ${DIR}${TOOL}/sfs/TI.saf.idx -sfs ${DIR}${TOOL}/sfs/GLOBAL.sfs -fstout ${DIR}${TOOL}/distance/GLOBAL -whichFst 1
+realSFS fst stats2 ${DIR}${TOOL}/distance/GLOBAL.fst.idx \
+    -tole 1e-6 -ref ${TREF} -anc ${TANC} \
+    -win 10000 -step 1000 > ${DIR}${TOOL}/distance/GLOBAL_stat2_10KBwindow_1KBstep.tsv
+
+realSFS fst stats2 ${DIR}${TOOL}/distance/GLOBAL.fst.idx \
+    -tole 1e-6 -ref ${TREF} -anc ${TANC} \
+    -win 50000 -step 10000 > ${DIR}${TOOL}/distance/GLOBAL_stat2_50KBwindow_10KBstep.tsv
+
+realSFS fst stats ${DIR}${TOOL}/distance/GLOBAL.fst.idx \
+    -tole 1e-6 -ref ${TREF} -anc $ANC \
+    -win 50000 -step 10000 -whichFst 1 > ${ANGSD}${TOOL}distance/GLOBAL_stat1_50KBwindow_10KBstep.tsv
 ```
-The final command estimated a global weighted and unweighted F<sub>ST</sub> of `XXX` and `XXX` respectively for putatively neutral sites and an unweighted F<sub>ST</sub> of `0.002177` and weighted F<sub>ST</sub> of `0.843221` for all sites.  
+The final command estimated a global weighted and unweighted F<sub>ST</sub> of `0.001981` and `0.838787` respectively for 259,924,909 putatively neutral sites and an unweighted F<sub>ST</sub> of `0.001987` and weighted F<sub>ST</sub> of `0.836593` for all 507,424,045 sites.  
 
 ### Estimating Nucleotide Diversity (π)
 We estimated nucleotide diversity (π) for the West Australian population of fairy tern and tara iti independently, using the site frequency spectrum (SFS) estimated above as a prior.  
@@ -398,9 +363,9 @@ for POP in AU TI KI
         angsd -P 26 -b ${ANGSD}${POP}.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}${TOOL}diversity/${POP}_pest \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
-            -GL 1 -doSaf 1 -pest ${ANGSD}${TOOL}sfs/${POP}.sfs
+            -GL 1 -doSaf 1 -pest ${ANGSD}${TOOL}/sfs/${POP}.sfs
         realSFS -p 40 -anc ${ANC} -ref ${REF} ${ANGSD}${TOOL}diversity/${POP}_pest.saf.idx > ${ANGSD}${TOOL}diversity/${POP}_pest.sfs
-        realSFS saf2theta ${ANGSD}${TOOL}diversity/${POP}_pest.saf.idx -sfs ${ANGSD}${TOOL}diversity/${POP}_pest.sfs -outname ${ANGSD}${TOOL}/diversity/${POP}_pest
+        realSFS saf2theta ${ANGSD}${TOOL}/diversity/${POP}_pest.saf.idx -sfs ${ANGSD}${TOOL}diversity/${POP}_pest.sfs -outname ${ANGSD}${TOOL}/diversity/${POP}_pest
         thetaStat do_stat ${ANGSD}${TOOL}/diversity/${POP}_pest.thetas.idx -win 10000 -step 1000 -outnames ${ANGSD}${TOOL}diversity/${POP}_pest_thetas_10KBwindows_1KBstep
         thetaStat do_stat ${ANGSD}${TOOL}/diversity/${POP}_pest.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}${TOOL}diversity/${POP}_pest_thetas_50KBwindows_10KBstep
     elif [[ "$POP" == "TI" ]]
@@ -408,18 +373,18 @@ for POP in AU TI KI
         angsd -P 26 -b ${ANGSD}${POP}.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}${TOOL}diversity/${POP}_pest \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
-            -GL 1 -doSaf 1 -pest ${ANGSD}${TOOL}sfs/${POP}.sfs
+            -GL 1 -doSaf 1 -pest ${ANGSD}${TOOL/}sfs/${POP}.sfs
         realSFS -p 40 -anc ${ANC} -ref ${REF} ${ANGSD}${TOOL}diversity/${POP}_pest.saf.idx > ${ANGSD}${TOOL}diversity/${POP}_pest.sfs
-        realSFS saf2theta ${ANGSD}${TOOL}diversity/${POP}_pest.saf.idx -sfs ${ANGSD}${TOOL}diversity/${POP}_pest.sfs -outname ${ANGSD}${TOOL}/diversity/${POP}_pest
+        realSFS saf2theta ${ANGSD}${TOOL}/diversity/${POP}_pest.saf.idx -sfs ${ANGSD}${TOOL}diversity/${POP}_pest.sfs -outname ${ANGSD}${TOOL}/diversity/${POP}_pest
         thetaStat do_stat ${ANGSD}${TOOL}/diversity/${POP}_pest.thetas.idx -win 10000 -step 1000 -outnames ${ANGSD}${TOOL}diversity/${POP}_pest_thetas_10KBwindows_1KBstep
         thetaStat do_stat ${ANGSD}${TOOL}/diversity/${POP}_pest.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}${TOOL}diversity/${POP}_pest_thetas_50KBwindows_10KBstep
     else
         angsd -P 26 -b ${ANGSD}${POP}.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}${TOOL}diversity/${POP}_pest \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 24 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
-            -GL 1 -doSaf 1 -pest ${ANGSD}${TOOL}sfs/${POP}.sfs
+            -GL 1 -doSaf 1 -pest ${ANGSD}${TOOL}/sfs/${POP}.sfs
         realSFS -p 40 -anc ${ANC} -ref ${REF} ${ANGSD}${TOOL}diversity/${POP}_pest.saf.idx > ${ANGSD}${TOOL}diversity/${POP}_pest.sfs
-        realSFS saf2theta ${ANGSD}${TOOL}diversity/${POP}_pest.saf.idx -sfs ${ANGSD}${TOOL}diversity/${POP}_pest.sfs -outname ${ANGSD}${TOOL}/diversity/${POP}_pest
+        realSFS saf2theta ${ANGSD}${TOOL}/diversity/${POP}_pest.saf.idx -sfs ${ANGSD}${TOOL}diversity/${POP}_pest.sfs -outname ${ANGSD}${TOOL}/diversity/${POP}_pest
         thetaStat do_stat ${ANGSD}${TOOL}/diversity/${POP}_pest.thetas.idx -win 10000 -step 1000 -outnames ${ANGSD}${TOOL}diversity/${POP}_pest_thetas_10KBwindows_1KBstep
         thetaStat do_stat ${ANGSD}${TOOL}/diversity/${POP}_pest.thetas.idx -win 50000 -step 10000 -outnames ${ANGSD}${TOOL}diversity/${POP}_pest_thetas_50KBwindows_10KBstep
 done
@@ -431,12 +396,12 @@ When aiming to estimate D<sub>XY</sub>, we need to first get a list of sites com
 angsd -P -b ${ANGSD}GLOBAL.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}neutral/diversity/GLOBAL_initial_Dxy \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMap 20 -minQ 20 -minInd 34 -setMinDepth 272 -setMaxDepth 630 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3
+    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6
 
 angsd -P 16 -b ${ANGSD}GLOBAL.list -ref $REF -anc $ANC -out ${ANGSD}samtools/diversity/GLOBAL_initial_Dxy \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 34 -setMinDepth 272 -setMaxDepth 630 -doCounts 1 \
-    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 
+    -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6
 ```
 The sites for use in D<sub>XY</sub> calculations were then extracted and indexed with `ANGSD`.
 ```
@@ -458,81 +423,188 @@ for POP in AU TI
         -trim 0 -C 50 -baq 1 -minMapQ 20 -minQ 20 -doCounts 1 -GL 1 -doMajorMinor 1 -doMaf 1
 done
 ```
-
-## Historical N<sub>e</sub> Inference with PSMC
-We created a consensus diploid sequence for three tara iti, Australian fairy tern and kakī samples. The conversion from FASTQ format to PSMCfa must use a `gzipped` file as input.  
-```
-for BAM in variants/fairy_bam/nodup/{AU01,AU27,AU28,SND06,SP01,TI37}_nodup_autosomes.bam
-    do
-    BASE=$(basename $BAM _nodup_autosomes.bam)
-    printf "BEGAN GENERATING CONSENSUS SEQUENCE FOR $BASE AT "
-    date
-    bcftools mpileup --threads 26 -Ou -Q 30 -q 20 -f $REF $BAM | \
-        bcftools call --threads 26 -c | \
-        vcfutils.pl vcf2fq -d 8 -D 125 -Q 30 > ${PSMC}fastq/${BASE}.fq
-    gzip ${PSMC}fastq/${BASE}_psmc.fq
-    fq2psmcfa -q20 ${PSMC}fastq/${BASE}_psmc.fq.gz > ${PSMC}psmcfa/${BASE}.psmcfa
-    printf "FINISHED GENERATING CONSENSUS SEQUENCE FOR $BASE AT "
-    date
-done
-```
-Once the file was prepared, we ran PSMC under the the following conditions... We assumed a generation time of 3 years for tara iti as the age of first breeding ranges between 2-4 years of age. For kakī, this was increased to 6 years. The avian mutation rate is estimated to range from 1.23 x 10<sup>-9</sup> - 2.21 x 10<sup>-9</sup>. Assuming the lower range of this estimate, a rate of 3.69 x 10<sup>-9</sup> and 7.38 x 10<sup>-9</sup> were used for fairy terns and kakī respectively.  
-```
-for FA in psmc/psmcfa/*.psmcfa
-    do
-    SAMP=$(basename $FA .psmcfa)
-    splitfa $FA > psmc/psmcfa/${SAMP}_split.psmcfa
-    printf "STARTED RUNNING PSMC FOR $SAMP AT "
-    date
-    psmc -N30 -t5 -r5 -p "4+30*2+4+6+10" -o psmc/out/${SAMP}_diploid.psmc $FA
-    seq 1 100 | parallel -j 10 psmc -N30 -t5 -r5 -b -p "4+30*2+4+6+10" -o psmc/out/${SAMP}_round-{}.psmc psmc/psmcfa/${SAMP}_split.psmcfa
-    cat psmc/out/${SAMP}_*.psmc > psmc/out/${SAMP}_combined.psmc
-    printf "FINISHED RUNNING PSMC FOR $SAMP AT "
-    date
-done
-
-psmc_plot.pl -u 3.69e-09 -g 3 psmc/AU psmc/out/AU*_combined.psmc
-psmc_plot.pl -u 3.69e-09 -g 3 psmc/TI psmc/out/TI*_combined.psmc
-psmc_plot.pl -u 7.38e-09 -g 6 psmc/KK psmc/out/KK*_combined.psmc
-```
-## Contemporary N<sub>e</sub> Inference with StairwayPlot2
-
-
-## Population Demography and Connectivity Inference with GADMA
-[GADMA](https://gadma.readthedocs.io/en/latest/user_manual/input_data/snp_data_format.html) leverages the joint SFS to infer the demographic history of multiple populations. It can implement [dadi](https://bitbucket.org/gutenkunstlab/dadi/), [moments](https://github.com/MomentsLD/moments), [momi2](https://github.com/popgenmethods/momi2/), and [momentsLD](https://github.com/MomentsLD/moments).  
-
-GADMA can take multiple input formats. Here we estimated the joint SFS in ANGSD and realSFS as above, with the exception that the `dadi` flag was on when running realSFS. This output was then converted with a perl script [realSFS2dadi.pl](https://github.com/z0on/2bRAD_denovo/blob/master/realsfs2dadi.pl).
-```
-realSFS dadi -ref $REF -anc $ANC AU.saf.idx TI.saf.ids -sfs AU.sfs -sfs TI.sfs > GLOBAL.dadi
-realSFS2dadi.pl GLOBAL.dadi 19 15 > GLOBAL_GADMA_SNPformat.txt
-```
-GADMA is relatively straightforward and easy to run. A parameter file defining specific settings can be used as input. One important parameter is `sequence length`, which denotes the number of sites used to build the data (SFS in our case). Fortunately, the realSFS programme includes this (`nSites`) as part of its progress output. For the neutral dataset this was 512,061,918 sites while it was 976,823,680 sites for the whole-genome data set.  
-
-Because the SNPs in either SFS were not filtered for linkage, we updated the paramfile to reflect this and provided a directory for bootstrapping. This has important implications for model selection methods, see [here](https://gadma.readthedocs.io/en/latest/user_manual/input_data/input_data.html#extra-information-about-data) for more information.  
-
-As with PSMC and StairwayPlot2 above, we ran GADMA with a conservative mutation rate of 1.23e-9 and a generation time of 3 years. Finally, the Selection and Dominance options were set to true prior to running with `gadma -p GADMA_neutral.params -o GADMA_neutral_moments/`.  
-
 ## Putative Genetic Load
 Given that the tara iti reference genome could not be annotated with RNA sequencing, ensure a robust and conservative assessment of genetic load that is translatable across species comparisons, we limited load estimates to highly conserved BUSCO genes in the fairy tern species complex (*Sterna nereis* spp.) and kakī (*Himantopus novazealandiae*) for comparison.  
 
-For the fairy tern and kakī reference genomes, we concatenated single copy BUSCO sequences into species specific `GFF` files.
+To start, we ran BUSCO v5.4.7 for the tara iti and kakī reference genome.
 ```
-cat Katies_genome/ragtag_busco/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.gff > Katies_genome/ragtag_busco/merged_single_copy_busco_sequences.gff
-cat kaki_genome/busco_output/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.gff > kaki_genome/busco_output/merged_single_copy_busco_sequences.gff
+cd Katies_genome
+busco --in Katie_5kb_ragtag.fa --out busco/ --mode genome --lineage_dataset aves_odb10 --cpu 32
+cd kaki_genome
+busco --in himNova-hic-scaff.fa --out busco/ --mode genome --lineage_dataset aves_odb10 --cpu 32
+```
+We then concatenated single copy BUSCO sequences into species specific `GFF` files.  
+```
+cat Katies_genome/busco/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.gff > Katies_genome/busco/merged_single_copy_busco_sequences.gff
+cat kaki_genome/busco/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.gff > kaki_genome/busco/merged_single_copy_busco_sequences.gff
 ```
 We then sorted and each file and converted them to `BED` format with [BEDtools](https://bedtools.readthedocs.io/en/latest/)v2.30.  
 ```
-bedtools sort -i Katies_genome/ragtag_busco/merged_single_copy_busco_sequences.gff > angsd/single_copy_BUSCO.bed
-bedtools merge -i angsd/single_copy_BUSCO.bed > angsd/single_copy_BUSCO.merged.bed
+bedtools sort -i Katies_genome/busco/merged_single_copy_busco_sequences.gff > Katies_genome/fairy_single_copy_BUSCO.bed
+bedtoosl merge -i Katies_genome/fairy_single_copy_BUSCO.bed > Katies_genome/fairy_single_copy_BUSCO.merged.bed
+
+bedtools sort -i kaki_genome/busco/merged_single_copy_busco_sequences.gff > kaki_genome/kaki_single_copy_BUSCO.bed
+bedtools merge -i kaki_genome/kaki_single_copy_BUSCO.bed > kaki_genome/kaki_single_copy_BUSCO.merged.bed
 ```
 We then filtered the `BED` file to excluded unplaced scaffolds and sex chromosomes (consistant with above population analyses) and indexed this `BED` file with ANGSD.
 ```
-BUSCO=${ANGSD}single_copy_BUSCO.merged.bed
+FBUSCO=Katies_genome/fairy_single_copy_BUSCO.merged.bed
+KBUSCO=kaki_genome/kaki_single_copy_BUSCO.merged.bed
 
+for POP in AU TI KI
+    do
+    if [[ $POP == "KI" ]]
+    then
+        bcftools mpileup --threads 26 -Ou -Q30 -q20 -f $KREF -R ${KBUSCO} \
+            -b ${ANGSD}${POP}.list -a DP,AD,ADF,ADR,SP | \
+            bcftools call --threads 26 -mv -O b -o ${LOAD}${POP}_calls.bcf
+    else
+        bcftools mpileup --threads 26 -Ou -Q30 -q20 -f $FREF -R ${FBUSCO} \
+            -b ${ANGSD}${POP}.list -a DP,AD,ADF,ADR,SP | \
+            bcftools call --threads 26 -mv -O b -o ${LOAD}${POP}_calls.bcf
+    fi
+done
+```
+After this step, a total of 1,346,181, 289,557 & X,XXX,XXX variants were called for Australian fairy tern, tara iti, and kakī respectively.  
+
+We then used [SIFT4G](https://github.com/rvaser/sift4g) to identify deleterious sites within these BUSCO genes. To do so, we leveraged the outputs from BUSCO to create a database called for our tara iti and kakī reference genomes.  
+
+Using the same method as when we concatenated the `GFF` files used to create `BED` files for variant discovery, we also obtained the reference protein sequences for each complete single copy BUSCO gene.
+```
+cat Katies_genome/busco/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.faa > Katies_genome/busco/merged_single_copy_busco_prot.fa
+cat kaki_genome/busco/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.faa > kaki_genome/busco/merged_single_copy_busco_prot.fa
+```
+The SIFT documentation suggests using `gffread`, however this is deprecated and unmaintained. We opted to convert the `GFF` files output from BUSCO to `GTF` with [agat](https://github.com/NBISweden/AGAT) v. 1.4.0.  
+```
+agat_convert_sp_gff2gtf.pl --gff Katies_genome/busco/merged_single_copy_busco.gff -o Katies_genome/busco/merged_single_copy_busco.gtf
+agat_convert_sp_gff2gtf.pl --gff kaki_genome/busco/merged_single_copy_busco.gff -o kaki_genome/busco/merged_single_copy_busco.gtf
+
+bgzip Katies_genome/busco/merged_single_copy_busco.gtf
+cp Katies_genome/busco/merged_single_copy_busco.gtf.gz fairy_SIFT_databases/gene-annotation-src/
+
+bgzip kaki_genome/busco/merged_single_copy_busco.gtf
+cp kaki_genome/busco/merged_single_copy_busco.gtf.gz kaki_SIFT_databases/gene-annotation-src/
+```
+The tara iti reference genome had each scaffold represented on a single line. This is incompatible with the notation for SIFT programmes. To address this, we used the Unix command `fold` to reduce line widths to 60 characters.  
+```
+fold -w 60 Katie_5kb_ragtag > Katie_5kb_ragtag_fold.fa
+bgzip Katie_5kb_fold.fa
+```
+We then used [SIFT4G_Create_Genomic_DB](https://github.com/pauline-ng/SIFT4G_Create_Genomic_DB) to construct a protein database from BUSCO genes identified in our tara iti and kakī reference genomes. A config file was constructed as below, adjusting the relevant settings as necessary.  
+```
+GENETIC_CODE_TABLE=1
+GENETIC_CODE_TABLENAME=Standard
+MITO_GENETIC_COTE_TABLE=2
+MITO_GENETIC_CODE_TABLENAME=Vertebrate Mitochondrial
+
+PARENT_DIR=fairy_SIFT_databases
+ORG=sterna_nereis_davisae
+ORG_VERSION=Katie_v1.0
+DBSNP_VCF_FILE=TI_calls.vcf.gz
+
+# Running SIFT4G, this path works for the Dockerfile
+SIFT4G_PATH=/home/jana/sift4g/bin/sift4g
+
+# POTEIN_DB needs to be uncompressed
+PROTEIN_DB=fairy_SIFT_databases/merged_single_copy_busco_prot.fa
+
+# Subdirectories, don't need to change
+GENE_DOWNLOAD_DEST=gene-annotation-src
+CHR_DOWNLOAD_DEST=chr-src
+LOGFILE=log.txt
+ZLOGFILE=log2.txt
+FASTA_DIR=fasta
+SUBST_DIR=subst
+ALIGN_DIR=SIFT_alignments
+SIFT_SCORE_DIR=SIFT_predictions
+SINGLE_REC_BY_CHR_DIR=singleRecords
+SINGLE_REC_WITH_SIFTSCORE_DIR=singleRecords_with_scores
+DBSNP_DIR=dbSNP
+
+# Doesn't need to change
+FASTA_LOG=fasta.log
+INVALID_LOG=invalid.log
+PEPTIDE_LOG=peptide.log
+ENS_PATTERN=ENS
+SINGLE_RECORD_PATTERN=:change:_aa1valid_dbsnp.singleRecord
+```
+SIFT databases were then constructed.
+```
+sudo perl make-SIF-db-all.pl -c fairy_terns.txt
+```
+### Sites Polarised with ANGSD
+To estimate masked and realised load in each fairy tern population and kakī we used ANGSD to output the major minor alleles, the called genotype, the posterior probability of the called genotype and all possible genotypes (`-doGeno 31`) to a BCF file (`-doBcf 1`). 
+```
 for POP in AU TI
     do
-    bcftools mpileup --threads 26 -Ou -Q30 -q20 -f $REF -R ${BUSCO} \
-        -b ${ANGSD}${POP}.list -a DP,AD,ADF,ADR,SP | \
-        bcftools call --threads 26 -mv -O b -o ${LOAD}TI_calls.bcf
+    if [[ "$POP" == "AU" ]]
+        then
+        angsd -P 24 -b ${ANGSD}${POP}.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
+            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
+        elif [[ "$POP" == "TI" ]]
+        then
+        angsd -P 24 -b ${ANGSD}${POP}.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
+            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
+        else
+        angsd -P 24 -b ${ANGSD}${POP}.list -ref $KREF -anc $KANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 24 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
+            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
+    fi
+done
+```
+
+### Variant Effect Predictor
+First attempted to fix `GFF` to be more compatible with VEP.  
+```
+agat_sp_manage_IDs.pl --gff references/kaki_merged_single_copy_busco.gff -o references/kaki_BUSCO_check.gff
+agat_sp_manage_IDs.pl --gff references/Katie_single_copy_BUSCO.gff -o references/Katie_BUSCO_check.gff
+```
+Then sorted and compressed `GFF`.  
+```
+cat references/kaki_BUSCO_check.gff | sort -k1,1 -k4,4n -k5,5n -t$'\t' | bgzip -c > references/kaki_BUSCO_check.gff.gz
+cat references/Katie_BUSCO_check.gff | sort -k1,1 -k4,4n -k5,5n -t$'\t' | bgzip -c > references/Katie_BUSCO_check.gff.gz
+```
+Then ran VEP.  
+```
+vep -i AU_whole-genome_polarized.vcf \
+    --custom references/Katie_BUSCO_check.gff.gz,FAIRY_GFF,gff \
+    --fasta references/Katie_5kb_ragtag_fold60.fa.gz \
+    --everything \
+    -o vep_data/angsd_high_confidence_BUSCO_SNPs/AU_whole-genome_polarized
+
+vep -i TI_whole-genome_polarized.vcf \
+    --custom references/Katie_BUSCO_check.gff.gz,FAIRY_GFF,gff \
+    --fasta references/Katie_5kb_ragtag_fold60.fa.gz \
+    --everything \
+    -o vep_data/angsd_high_confidence_BUSCO_SNPs/TI_whole-genome_polarized
+
+vep -i KI_whole-genome_polarized.vcf \
+    --custom references/kaki_BUSCO_check.gff.gz,FAIRY_GFF,gff \
+    --fasta references/him_Nova-hic-scaff.fa \
+    --everything \
+    -o vep_data/angsd_high_confidence_BUSCO_SNPs/KI_whole-genome_polarized
+```
+Preparing data for plotting - Identifying and extracting sites by impact.  
+```
+grep IMPACT=LOW vep_data/angsd_high_confidence_BUSCO_SNPs/AU_whole-genome_polarized | cut -f2 | sed 's/:/\t/g' | sort | uniq > AU_ANGSD_lowImpact_sites.tsv
+grep IMPACT=MODERATE vep_data/angsd_high_confidence_BUSCO_SNPs/AU_whole-genome_polarized | cut -f2 | sed 's/:/\t/g' | sort | uniq > AU_ANGSD_moderateImpact_sites.tsv
+grep IMPACT=HIGH vep_data/angsd_high_confidence_BUSCO_SNPs/AU_whole-genome_polarized | cut -f2 | sed 's/:/\t/g' | sort | uniq > AU_ANGSD_highImpact_sites.tsv
+```
+Extracting site frequency.
+```
+for IMPACT in lowImpact moderateImpact highImpact
+    do
+    printf "EXTRACTING ALLELE FREQUENCY OF $IMPACT SITES"
+    bcftools query -T AU_ANGSD_${IMPACT}_sties.tsv \
+        -f '%CHROM\t%POS\t%AF\t${IMPACT}\tAU\n' \
+        vep_data/AU_whole-genome_polarized.vcf >> vep_data/AU_ANGSD_impact_summary.tsv
+    bcftools query -T TI_ANGSD_${IMPACT}_sties.tsv \
+        -f '%CHROM\t%POS\t%AF\t${IMPACT}\tTI\n' \
+        vep_data/TI_whole-genome_polarized.vcf >> vep_data/TI_ANGSD_impact_summary.tsv
 done
 ```

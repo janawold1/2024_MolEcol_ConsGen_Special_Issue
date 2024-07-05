@@ -1,326 +1,141 @@
 # Structural Variant Discovery and Analysis
 Structural variant (SV) analyses followed a similar pipeline where variant discovery, variant quality filtering, and initial genotyping was performed under recommended pipelines. High quality genotypes representing homozygous reference, heterozygous and homozygous alternate calls were then plotted with SAMplot and evaluated using PlotCritic for call refinement. Calls passing evaluation with PlotCritic were then merged using SURVIVOR and used to construct a genome graph with the VG tools suite. Detailed methods for each of these steps using Delly, Manta and Smoove are outlined below.  
-## Delly Discovery
-SV discovery with common tern and scaffolded tara iti assemblies
-```
-for BAM in nodup/*_nodup_autosomes.bam
-    do
-    BASE=$(basename ${BAM} _nodup_autosomes.bam)
-    printf "BEGAN RUNNING DELLY FOR ${BASE} AT "
-    date
-    delly call -g ${REF} -o delly/raw_calls/${BASE}_nodup.bcf ${BAM}
-    printf "FINISHED AT "
-    date
-done
-```
-Once initial calls were made, the file was merged and filtered for two different minimum sizes.  
-```
-delly merge -o delly/01_raw_merged_calls.bcf delly/raw_calls/*_nodup.bcf
-```
-All breakend calls were excluded as they likely indicate unresolved complex variation. The remanining SVs were required to `PASS` all Delly filters and have `PRECISE` breakpoints.  
-```
-bcftools view -i 'FILTER=="PASS" & INFO/PRECISE==1 & SVTYPE!="BND"' \
-    -O b -o delly/02_SV_filtered.bcf delly/01_raw_merged_calls.bcf
 
-bcftools view -i 'SVTYPE=="DEL"' -O b -o delly/03_filtered_DEL.bcf delly/02_SV_filtered.bcf
-```
-Number of SVs called and number passing filtering thresholds:  
-|    SV Type   | # FT SVs Called | # KI SVs Called | # FT Filtered | # KI Filtered | FT Curated SVs | KI Curated SVs |
-| ------------ | --------------- | --------------- | ------------- | ------------- | -------------- | -------------- |
-|  Breakends   |       748       |       728       |       0       |       0       |        0       |       0        |
-|  Deletions   |      7,929      |      5,009      |     7,318     |     4,497     |      6,033     |     X,XXX      |
-| Duplications |       599       |       371       |      190      |       83      |        0       |       0        |
-|  Insertions  |       992       |       971       |      992      |      971      |        0       |       0        |
-|  Inversions  |     15,640      |       867       |     6,103     |      464      |        0       |       0        |
-|  **Total**   |   **25,908**    |    **7,946**    |  **14,603**   |   **6,015**   |    **6,033**   |   **X,XXX**    |
-
-These final SVs were then merged with the other datasets and used as input into the VG graph as outlined below.  
-## Manta Discovery
+## Variant Discovery
 [Manta](https://github.com/Illumina/manta) v1.6.0 was used to call SVs for Australian fairy tern and tara iti. Three samples had to be excluded for Manta to run, AU13, TI06, TI34 & TI35. The errors indicated issues with the proportion of reads and read depth statistics. Each chromosome was called independently with the `--callRegions` flag to save computational resource and increase efficiency. Five samples did not pass [Manta's read-pair orientation threshold](https://github.com/Illumina/manta/issues/168) of 90% and were excluded from SV discovery. This included two Australian samples and three tara iti samples (AU08, AU13, SND11, TI35).
 
-Running Manta is relatively simple, with the initial configuration setup as per:
+Running Manta is relatively simple, with the initial configuration setup for each individual chromosome as per:
 ```
-bgzip Katie_autosomes2.bed
-tabix -s 1 -b 2 -e 3 Katie_autosomes2.bed.gz 
-
-configManta.py --referenceFasta $REF --callRegions reference/Katie_autosomes2.bed.gz --runDir $DIR --bam AU01_nodup_autosomes.bam \
-    --bam AU03_nodup_autosomes.bam --bam AU04_nodup_autosomes.bam --bam AU06_nodup_autosomes.bam --bam AU09_nodup_autosomes.bam \
-    --bam AU14_nodup_autosomes.bam --bam AU17_nodup_autosomes.bam --bam AU20_nodup_autosomes.bam --bam AU21_nodup_autosomes.bam \
-    --bam AU23_nodup_autosomes.bam --bam AU24_nodup_autosomes.bam --bam AU25_nodup_autosomes.bam --bam AU27_nodup_autosomes.bam \
-    --bam AU28_nodup_autosomes.bam --bam AU29_nodup_autosomes.bam --bam AU30_nodup_autosomes.bam --bam AU33_nodup_autosomes.bam \
-    --bam SND04_nodup_autosomes.bam --bam SND05_nodup_autosomes.bam --bam SND06_nodup_autosomes.bam --bam SND15_nodup_autosomes.bam \
-    --bam SP02_nodup_autosomes.bam --bam SP03_nodup_autosomes.bam --bam SP07_nodup_autosomes.bam --bam TI21_nodup_autosomes.bam \
-    --bam TI36_nodup_autosomes.bam --bam TI37_nodup_autosomes.bam --bam TI38_nodup_autosomes.bam --bam TI40_nodup_autosomes.bam \
-    --bam TI41_nodup_autosomes.bam
+while read -r line
+    do
+    CHROM=$(echo $line | awk '{print $1}')
+    REGION=$(echo $line | awk '{print $1":1-"$3}')
+    mkdir manta/${CHROM}
+    echo $REGION
+    configManta.py --referenceFasta $REF --region $REGION --runDir manta/${CHROM}/ --bam AU01_nodup_autosomes.bam \
+        --bam AU03_nodup_autosomes.bam --bam AU04_nodup_autosomes.bam --bam AU06_nodup_autosomes.bam --bam AU09_nodup_autosomes.bam \
+        --bam AU14_nodup_autosomes.bam --bam AU17_nodup_autosomes.bam --bam AU20_nodup_autosomes.bam --bam AU21_nodup_autosomes.bam \
+        --bam AU23_nodup_autosomes.bam --bam AU24_nodup_autosomes.bam --bam AU25_nodup_autosomes.bam --bam AU27_nodup_autosomes.bam \
+        --bam AU28_nodup_autosomes.bam --bam AU29_nodup_autosomes.bam --bam AU30_nodup_autosomes.bam --bam AU33_nodup_autosomes.bam \
+        --bam SND04_nodup_autosomes.bam --bam SND05_nodup_autosomes.bam --bam SND06_nodup_autosomes.bam --bam SND15_nodup_autosomes.bam \
+        --bam SP02_nodup_autosomes.bam --bam SP03_nodup_autosomes.bam --bam SP07_nodup_autosomes.bam --bam TI21_nodup_autosomes.bam \
+        --bam TI36_nodup_autosomes.bam --bam TI37_nodup_autosomes.bam --bam TI38_nodup_autosomes.bam --bam TI40_nodup_autosomes.bam \
+        --bam TI41_nodup_autosomes.bam
+done < reference/Katie_autosomes2.bed
 ``` 
-And Manta executed on the resulting `runWorkflow.py` file in the designated output directories.  
+And Manta executed on the resulting `runWorkflow.py` file in the designated output directories. Once individual chromosome runs were complete, VCFs were concatenated into a single file for SV quality filtering. 
+```
+echo CM0204{37..58}.1_RagTag | tr ' ' '\n' | while read chrom; do if [[ ! -d manta/${chrom} ]]; then continue; fi; find manta/${chrom}/results/variants/ -name diploidSV.vcf.gz | sort; done > manta/fairy_vcf_list
 
+echo scaffold_{1..28} | tr ' ' '\n' | while read chrom; do if [[ ! -d manta/${chrom} ]]; then continue; fi; find manta/${chrom}/results/variants/ -name diploidSV.vcf.gz | sort; done > manta/kaki_vcf_list
+
+bcftools concat --naive --file-list manta/fairy_vcf_list \
+    -O z -o manta/01_fairy_SVcalls.vcf.gz
+
+bcftools concat --naive --file-list manta/kaki_vcf_list \
+    -O z -o manta/01_kaki_SVcalls.vcf.gz
+```
+
+## Filtering
 Filtering of raw Manta calls was relatively simple. Because Manta outputs inversions as breakends ([see here](https://github.com/Illumina/manta/blob/master/docs/userGuide/README.md)), Inversion calls were converted from Breakends using the `convertInversions.py` script supplied by Manta.  
 ```
 convertInversion.py ~/anaconda3/envs/samtools/bin/samtools $REF \
-    manta/results/variants/diploidSV.vcf.gz > manta/results/variants/diploid_INV_convert.vcf
+    manta/01_fairy_SVcalls.vcf.gz > manta/02_fairy_SVcalls_INVconverted.vcf
+
+convertInversion.py ~/anaconda3/envs/samtools/bin/samtools $REF \
+    manta/01_kaki_SVcalls.vcf.gz > manta/02_kaki_SVcalls_INVconverted.vcf
 ```
 Then all reads had to pass all 'hard' filtering thresholds and have 'PRECISE' breakpoints.  
 ```
-bcftools view -i 'INFO/SVTYPE!="BND" & FILTER="PASS" & IMPRECISE=0' \
-    -O v -o manta/results/variants/diploid_INV_convert_filtered.vcf \
-    manta/results/variants/diploid_INV_convert.vcf
+bcftools view -i 'FILTER=="PASS" & IMPRECISE==0' \
+    -O z -o manta/03_fairy_filtered.vcf.gz manta/02_fairy_SVcalls_INVconverted.vcf
+bcftools index manta/03_fairy_filtered.vcf.gz
+
+bcftools view -i 'FILTER=="PASS" & IMPRECISE==0' \
+    -O z -o manta/03_kaki_filtered.vcf.gz manta/02_kaki_SVcalls_INVconverted.vcf
+bcftools index manta/03_kaki_filtered.vcf.gz
 ```
+## Genotyping
 
-The raw calls initially comprised of:  
-|    SV Type   |# FT Called|# KI Called|# FT INV Converted|# KI INV Converted|# FT Filtered|# KI Filtered|FT Curated SVs|KI Curated SVs|
-| ------------ | --------- | --------- | ---------------- | ---------------- | ----------- | ----------- | ------------ | ------------ |
-|  Breakends   |   4,858   |    1,126  |       728        |        580       |       0     |      0      |       0      |      0       |
-|  Deletions   |   7,135   |    3,688  |      7,135       |       3,688      |     6,199   |    3,381    |     4,575    |    X,XXX     |
-| Duplications |    666    |     319   |       666        |        319       |      425    |     236     |       0      |      0       |
-|  Insertions  |   4,207   |    2,259  |      4,207       |       2,259      |     3,973   |    2,167    |       0      |      0       |
-|  Inversions  |     0     |      0    |      2,065       |        273       |     1,508   |     153     |       0      |      0       |
-|  **Total**   |**16,866** |  **7,392**|   **14,801**     |     **7,119**    |  **12,105** |  **5,937**  |   **4,575**  |  **X,XXX**   |
-
-## Smoove Discovery
-
+Then performed genotyping as per:
 ```
-for BAM in ${dir}*_nodup_autosomes.bam
+while read -r line
     do
-    BASE=$(basename ${BAM} _nodup_autosomes.bam)
-    echo "RUNNING SMOOVE CALL FOR ${BASE}..."
-    smoove call --name ${BASE} --fasta ${REF} --outdir smoove/raw_calls/ --genotype ${BAM}
-done
-```
-Then calls for all individuals were merged into a single file.  
-```
-smoove merge --name 01_raw_merged --fasta ${REF} --outdir smoove/ smoove/raw_calls/*.genotyped.vcf.gz
-```
-After merging, `INFO/IMPRECISE` and all breakend (`SVTYPE=BND`) calls were excluded.
-```
-bcftools view -i 'INFO/IMPRECISE==0 & INFO/SVTYPE!="BND"' -O v -o smoove/02_smoove_precise.vcf smoove/01_raw_merged.sites.vcf
-bcftoo
-```
-
-The raw calls initially comprised of:  
-|    SV Type   | # FT Called | # KI Called | # FT Filtered | # KI Filtered | FT Curated SVs | KI Curated SVs |
-| ------------ | ----------- | ----------- | ------------- | ------------- | -------------- | -------------- |
-|  Breakends   |    5,908    |    2,020    |       0       |       0       |        0       |       0        |
-|  Deletions   |    6,046    |    3,907    |      664      |      319      |       643      |      319       |
-| Duplications |    1,267    |     573     |      58       |       14      |        0       |       0        |
-|  Insertions  |      0      |      0      |       0       |       0       |        0       |       0        |
-|  Inversions  |   11,812    |     313     |      345      |       2       |        0       |       0        |
-|  **Total**   | **25,033**  | **25,063**  |   **1,067**   |    **335**    |     **643**    |    **319**     |
-
-## Validating Filtered SV Calls
-[SAMplot](https://github.com/ryanlayer/samplot) and [plotCritic](https://github.com/jbelyeu/PlotCritic) were used to evaluate SV calls from Delly, Smoove and Manta. However, SAMplot is only able to plot Deletions, Duplications and Inversions. In addition, except in a few instances, recovering the full sequences representing inversion and duplication haplotypes from short-read data alone is challenging. Only delection calls were curated for genome graph construction as they generally have clear support (read depth, and split reads) and obvious breakpoints. These are important aspects for accurate genotyping from graphs.  
-
-Given the limitations of short-read data alone to resolve insertions, inversions, and duplications at the haplotype level, we limited our graphs to deletions. We required that deletion calls had to have exact breakpoints, and that they were supported by evidence from both split-read and read depth variation. There was no minimum or maximum size limitations.  
-
-Deletions were curated for each of the three tools independently prior to merging. To generate input files representing heterozygous and homozygous alternate sites for these SVs, we focused on genotypes from each of the tools as they could provide clues as to which samples provided support for SV calls.  
-```
-for tool in delly manta smoove
-    do
-    echo "EXTRACTING SITES FROM $tool..."
-    bcftools query -i 'SVTYPE!="INS" & GT="het"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | awk '{if (NF>=8) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$8;}' >> ${tool}/samplot_het_n4.tsv
-    bcftools query -i 'SVTYPE!="INS" & GT="het"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | awk '{if (NF==7) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7;}' >> ${tool}/samplot_het_n3.tsv
-    bcftools query -i 'SVTYPE!="INS" & GT="het"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | awk '{if (NF==6) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6;}' >> ${tool}/samplot_het_n2.tsv
-    bcftools query -i 'SVTYPE!="INS" & GT="het"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | awk '{if (NF==5) print $1"\t"$2"\t"$3"\t"$4"\t"$5;}' >> ${tool}/samplot_het_n1.tsv
-    bcftools query -i 'SVTYPE!="INS" & GT="AA"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | awk '{if (NF>=8) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7"\t"$8;} > ${tool}/samplot_homAlt_n4.tsv
-    bcftools query -i 'SVTYPE!="INS" & GT="AA"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | awk '{if (NF==7) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7;} > ${tool}/samplot_homAlt_n3.tsv
-    bcftools query -i 'SVTYPE!="INS" & GT="AA"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | awk '{if (NF==6) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6;} > ${tool}/samplot_homAlt_n2.tsv
-    bcftools query -i 'SVTYPE!="INS" & GT="AA"' -f '%CHROM\t%POS\t%END\t%SVTYPE\t[%SAMPLE\t]\n' ${tool}/02_filteredSVs.vcf | awk '{if (NF==5) print $1"\t"$2"\t"$3"\t"$4"\t"$5;} > ${tool}/samplot_homAlt_n1.tsv
-done
-```
-Then used as input for plotting for 4 fairy tern samples.  
-```
-for tool in delly manta smoove
-    do
-    for geno in {homAlt,het}_n{1..4}
-        do
-            while read -r line
-                do
-                    printf "STARTED RUNNING SAMPLOT FOR $tool AT "
-                    date
-                    chrom=$(echo $line | awk '{print $1}')
-                    start=$(echo $line | awk '{print $2}')
-                    end=$(echo $line | awk '{print $3}')
-                    type=$(echo $line | awk '{print $4}')
-                    samp1=$(echo $line | awk '{print $5}')
-                    samp2=$(echo $line | awk '{print $6}')
-                    samp3=$(echo $line | awk '{print $7}')
-                    samp4=$(echo $line | awk '{print $8}')
-                    samplot plot -n $samp1 $samp2 $samp3 $samp4 \
-                        -b align/nodup/${samp1}_nodup_autosomes.bam \
-                        align/nodup/${samp2}_nodup_autosomes.bam \
-                        align/nodup/${samp3}_nodup_autosomes.bam \
-                        align/nodup/${samp4}_nodup_autosomes.bam \-t
-                        -o ${tool}/samplot_outputs/${geno}/${chrom}_${start}_${end}_${type}.png \
-                        -c ${chrom} -s ${start} -e ${end} -t ${type}
-            done < ${tool}/samplot_${geno}_sites.tsv
-    done
-done
-```
-However, not all SV calls had support for a minimum of 4 individuals. These calls were filtered out (e.g., `awk { if (NR==5) {print $0} } > samplot_het_n1.tsv`) and plotted in a similar manner as above.
-
-[PlotCritic](https://github.com/jbelyeu/PlotCritic) v1.0.1 was used to evaluate whether calls had both read depth and split-read support prior to merging.  
-```
-plotcritic -p $tool -i ${tool}/kaki_samplot/samplot/ -q "Is this Deletion supported?" -A "y":"Yes" "n":"No" "u":"Uncertain"
-```
-
-But SMOOVE doesn't include the reference allele in the output VCF. To correct this, we normalised the SMOOVE output.  
-```
-bcftools norm --check-ref s --fasta-ref $REF -O z -o smoove/07_smoove_plotcritic_norm.vcf.gz smoove/06_smoove_plotcritic.vcf
-bcftools sort -O z -o smoove/08_smoove_plotcritic_norm.sorted.vcf.gz smoove/07_smoove_plotcritic_norm.vcf.gz
-tabix -p vcf smoove/08_smoove_plotcritic_norm.sorted.vcf.gz
-```
-Then all three call sets were merged.  
-```
-bcftools merge -m none -O z -o vg/DEL_calls.vcf.gz \
-    delly/05_delly_plotcritic.vcf.gz \
-    manta/03_manta_plotcritic.vcf.gz \
-    smoove/08_smoove_plotcritic_norm.sorted.vcf.gz
-tabix -p vcf DEL_calls.vcf.gz
-```
-This left 7,958 total deletions for genotyping.  
-
-# Graph Construction and alignment
-Graph construction, alignment and genotyping was performed using the VG toolsuite.  
-```
-vg autoindex \
-	--workflow giraffe \
-	-r ${dir}Katie_5kb_autosomes.fa \
-	-v ${dir}vg/DEL_calls.vcf.gz \
-	-p ${dir}DEL_graph -t 16
-```
-And finally, mapping can be done by passing the required indices.  
-```
-for fq2 in reads/*_R2.fq
-    do
-    indiv=$(basename $fq2 _R2.fq)
-    printf "STARTED ALIGNING $indiv TO GRAPH AT "
+    printf "STARTED GENOTYPING $line AT "
     date
-    vg giraffe \
-	    -Z vg/DEL_graph.giraffe.gbz \
-	    -m vg/DEL_graph.min \
-	    -d vg/DEL_graph.dist \
-	    -f reads/${indiv}_R1.fq \
-	    -f reads/${indiv}_R2.fq > vg/gam/${indiv}_giraffe.gam
+    graphtyper genotype_sv reference/Katie_5kb_ragtag.fa manta/03_fairy_filtered.vcf.gz --sams=fairy.list --threads=16 --region=$line
+done < fairy_chroms.tsv
 ```
-Then the output `.gbz` from `vg autoindex` was converted to `.xg` format for variant calls.
+Genotypes for individual chromosomes were then merged and filtered to include SVs that passed in the `AGGREGATED` genotyping model for graphtyper and had a mean GQ>=25.
 ```
-vg convert -x --drop-haplotypes \
-	vg/DEL_graph.giraffe.gbz > vg/genotyping/DEL_graph.xg
-```
-And individual SV genotyping was performed.  
-```
-vg pack --threads 16 -x vg/genotyping/DEL_graph.xg \
-	-g vg/gam/${indiv}_giraffe.gam \
-	-Q 5 -o vg/genotyping/${indiv}_giraffe.pack
+echo CM0204{37..58}.1_RagTag | tr ' ' '\n' | while read chrom; do if [[ ! -d graphtyper/sv_results/${chrom} ]]; then continue; fi; find graphtyper/sv_results/${chrom} -name "*.vcf.gz" | sort; done > graphtyper/fairy_vcf_list
 
-vg call --genotype-snarls vg/genotyping/DEL_graph.xg -s ${indiv}\
-	-k vg/genotyping/${indiv}_giraffe.pack > vg/genotyping/${indiv}_giraffe.vcf
-```
-All VCFs were then compressed with `bgzip` and indexed with tabix for merging into population specific, and a global fairy tern data set (i.e., AU, KI, TI, GLOBAL).
+bcftools concat --naive --file-list graphtyper/fairy_vcf_list \
+    -O z -o graphtyper/fairy_manta_graphtyper.vcf.gz
 
-## Alternative
-Ran into some possible hiccups with vg giraffe (mostly really poor mapping quality) that are consistent with the kākāpō trials. Have decided to try the `vg map` programme as well. This approach will potentially help with nested multiallelics as it theoretically can use the VCF when the `-a` flag is on during graph construction. However, super memory and RAM hungry. To make it work, need to 1) Build graphs for individual chromosomes; 2) Coordinate the node IDs; 3) Index graphs (most memory hungry step); 4) generate chromosome specific `.fq` files for individuals; 5) map reads; and finally 6) call genotypes.
-
-To first construct chromosomes specific graphs. Then we consolidated the node IDs. Note, my code is slightly different from what is suggested by VG Wiki. This is because my chromosome names are not purely numerical and I was RAM limited for running jobs like construction in parallel.  
+bcftools view -i 'SVMODEL=="AGGREGATED" & mean(GQ)>=15 & N_PASS(GT=="mis")==0' \
+    -O z -o graphtyper/fairy_manta_graphtyper_filtered.vcf.gz \
+    graphtyper/fairy_manta_graphtyper.vcf.gz
 ```
-for CHR in CM020{437..458}.1_RagTag
+This genotyping and filtering approach was also used for kakī.  
+
+|   SV Type   | Raw FT Genotypes | Filtered FT Genotypes | KĪ Genotypes | KĪ GenoFiltered |
+|:-----------:|:----------------:|:---------------------:|:------------:|:---------------:|
+|  Deletion   |       5,948      |         4,245         |       XXX    |       XXX       |
+| Duplication |        450       |           78          |       XXX    |       XXX       |
+|  Insertion  |       3,659      |         2,653         |       XXX    |       XXX       |
+|  Inversion  |        486       |           0           |       XXX    |        0        |
+
+
+### Genotype Curation
+
+
+## Diversity
+### SV Type and Size distributions
+XXX
+
+### Individual Heterozygosity (H<sub>o</sub>)
+Genotypes for each individual were estimated and then plotted in 06_visualisations.ipynb.  
+
+```
+while read -r line
     do
-    printf "STARTED CONSTRUCTING GRAPH FOR $CHR AT "
-    date
-    vg construct -f -S -a -t 16 -R $CHR -r $REF -v vg/DEL_calls.vcf.gz > vg/graphs/${CHR}_graph.vg
-done
-
-vg ids -j vg/graphs/CM020*
-```
-And indexed.
-```
-for GRAPH in vg/graphs/CM020*_RagTag_graph.vg
-    do
-    CHR=$(basename $GRAPH _graph.vg)
-    printf "STARTED GENERATING XG INDEX FOR $CHR AT "
-    date
-    vg index -t 16 -x vg/graphs/${CHR}_graph.xg -g vg/graphs/${CHR}_graph.gcsa $GRAPH
-done
-```
-Extracting chromosome specific reads for individuals
-```
-for BAM in ${DIR}nodup/*_nodup_autosomes.bam
-    do
-    INDIV=$(basename $BAM _nodup_autosomes.bam)
-    while read -r line
-        do
-        SCF=$(echo $line | awk '{print $1}')
-        CHR=$(echo $line | awk '{print $2}')
-        printf "STARTED EXTRACTING READS FOR $INDIV CHROMOSOME $CHR AT "
-        date
-        samtools view -@16 -b $BAM | samtools fastq -@16 -1 vg/reads/${indiv}_chr${CHR}_R1.fq -2 vg/reads/${INDIV}_chr${CHR}_R2.fq
-    done < vg/chr_list.tsv
-done
-```
-Mapping and genotyping reads.
-```
-for FQ in vg/reads/*_chr01_R1.fq
-    do
-    INDIV=$(basename $FQ _chr01_R1.fq)
-    while read -r line 
-        do
-        SCF=$(echo $line | awk '{print $1}')
-        CHR=$(echo $line | awk '{print $2}')
-        printf "STARTED ALIGNING READS FOR $INDIV CHR${CHR} AT "
-        date
-        vg map -t 16 -x vg/graphs/${SCF}_graph.xg -g vg/graphs/${SCF}_graph.gcsa -f vg/reads/${INDIV}_chr${CHR}_R1.fq -f vg/reads/${INDIV}_chr${CHR}_R2.fq > vg/gam/${INDIV}_chr${CHR}.gam
-        printf "NOW GENOTYPING $INDIV CHR${CHR} AT "
-        date
-        vg pack -t 16 -x vg/graphs/${SCF}_graph.xg -g vg/gam/${INDIV}_chr${CHR}.gam -Q 5 -o vg/genotypes/${INDIV}_chr${CHR}.pack
-        vg call --genotype-snarls vg/graphs/${SCF}_graph.xg -k vg/genotypes/${INDIV}_chr${CHR}.pack -t 16 -s ${INDIV} > vg/genotypes/${INDIV}_chr${CHR}.vcf
-        bgzip vg/genotypes/${INDIV}_chr${CHR}.vcf
-        tabix -p vcf vg/genotypes/${INDIV}_chr${CHR}.vcf.gz
-    done < vg/chr_list.tsv
-done
+    echo $line
+    TOT=$(bcftools query -s ${line} -i 'GT!="mis" & GQ>=15 & SVMODEL=="AGGREGATED"' -f '[%GT\n]' graphtyper/fairy_manta_graphtyper.vcf | wc -l)
+    HET=$(bcftools query -s ${line} -i 'GT!="mis" & GQ>=15 & SVMODEL=="AGGREGATED"' -f '[%GT\n]' graphtyper/fairy_manta_graphtyper.vcf | sort | uniq -c | awk '{print $1}' | tr '\n' '\t' | awk -v var=$TOT '{print $2/var}')
+    if [[ "$line" == "AU"* ]]
+    then
+        printf "$line\t$HET\tAU\n" >> graphtyper/individual_svHet.tsv
+    elseif [[ "$line" == "H0"* ]]
+        then
+        printf "$line\t$HET\tKI\n" >> graphtyper/individual_svHet.tsv
+    else
+        printf "$line\t$HET\tNZ\n" >> graphtyper/individual_svHet.tsv
+    fi
+done < samples.txt
 ```
 
-### Nested variants
-`vg call` has an interesting quirk where variants that are close to one another are 'nested', causing multiallelic calls (see [here](https://www.biostars.org/p/9578818/#9578853) for more details)
-
-## Mapping quality comparisons
-The below is modified from [this](https://gtpb.github.io/CPANG18/pages/toy_examples) tutorial for assessing mapping scores of reads aligned to own assemblies and to the graph.
-
-MapQ scores for reads aligned to genome graph were extracted with:
-```
-for GAM in vg/gam/AU*.gam
-    do
-    INDIV=$(basename $GAM .gam)
-    vg view -aj ${GAM} | jq -cr '[.name, .mapping_quality] | @tsv' > vg/gam/${indiv}_mapQual.tsv
-    samtools view bam/${indiv}_nodup_autosomes.bam | awk '{print $1"\t"$5}' > vg/gam/${indiv}_bamQual.tsv
-    join <(sort vg/gam/${indiv}_bamQual.tsv ) <(sort vg/gam/${indiv}_mapQual.tsv ) | awk -v VAR=$INDIV '{print var"\t"$0}' > vg/gam/${indiv}_qual.tsv
-done
-
-printf "Individual\tRead ID\tLinear Mapping Q Score\tGenome Graph Q Score\n" > vg/gam/fairy_mapping_scores.tsv
-cat vg/gam/*_qual.tsv >> vg/gam/fairy_mapping_scores.tsv
-
-```
-Finally, the output of mapping quality for reads aligned to Katie's genome and the genome graph were merged with
-
-```
-awk '{ if ($4 < 0) print $1 }' ${indiv}_mapQual_compared.tsv | wc -l # Number of reads that aligned better to self
-awk '{ if ($4 == 0) print $1 }' ${indiv}_mapQual_compared.tsv | wc -l # Number of alignments that were the same quality
-awk '{ if ($4 > 0) print $1 }' ${indiv}_mapQual_compared.tsv | wc -l # Number of reads that aligned better in the graph
-```
-Then looked at distribution of mapping quality scores with:
-```
-awk '{print $2}' DEL/vg_maps/Ariki.tsv | sort -n | awk ' {print $0 (NF<1 ? OFS "NA" : "") }' | uniq -c
-```
-### Visualising mapping quality
-First augmented the input file
-```
-printf "indiv\tread_id\tscore\tdata\n" > fairy_mapping_scores.tsv
-
-awk '{print $1"\t"$2"\t"$3"\tgenome_graph"} *_mapQual.tsv >> fairy_mapping_scores.tsv
-awk '{print $1"\t"$2"\t"$4"\tlinear_genome"} *_bamQual.tsv >> fairy_mapping_scores.tsv
-```
-# Population Analysis
+### Site Frequency Spectrum
 To generate a site frequency spectrum for SVs, we generated population specific VCFs for 
- 
+
+## Population Structure and Differentiation
+### MDS
+We prepared the called SVs for ngsDist by using BCFtools to output the posterior probabilities (`FORMAT/PL`) for each individual's genotype.  
+```
+bcftools query -f '%CHROM\t%POS\t[%PL\t]\n' graphtyper/fairy_manta_graphtyper_filtered.vcf.gz | sed 's/,/\t/g' > graphtyper/fairy_mds/fairy_geno_svs.tsv
+gzip graphtyper/fairy_mds/fairy_geno_svs.tsv
+
+NSITES=$(zcat graphtyper/fairy_mds/fairy_geno_svs.tsv.gz | wc -l)
+ngsDist --geno graphtyper/fairy_mds/fairy_geno_svs.tsv.gz --probs --log_scale \
+    -n_ind 34 -n_sites $NSITES -labels graphtyper/fairy_mds/mds_list -o graphtyper/fairy_mds/GLOBAL_svDist
+```
+
+```
+tail -n +3 graphtyper/fairy_mds/GLOBAL_svDist | Rscript --vanilla --slave getMDS.R \
+    --no_header --data_symm -n 4 -m "mds" -o graphtyper/fairy_mds/GLOBAL_sv.mds
+```
+### F<sub>ST</sub>
+
 ### SVs and ROH Correlations - May be for another day
 May need to consider multi-species comparisons.  
 
@@ -330,4 +145,4 @@ Similar patters off heterozygosity, Fst and structure?
 
 To what extent do these SVs represent functional variation? This is the value add to the Sunnocks frame - We can't get at funcgtional variation so we look at all these indirect methods of inferring adaptive potential  
 
-Knowing number of fixed differences.
+Knowing number of fixed differences.  
