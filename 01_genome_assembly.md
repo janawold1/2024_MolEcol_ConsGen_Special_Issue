@@ -43,7 +43,7 @@ samtools fastq ${out}${indiv}/${indiv}_${lib}_R10_moves.sam > ${out}${indiv}/${i
 samtools fastq ${out}${indiv}/${indiv}_${lib}_duplex_orig.sam >> ${out}${indiv}/${indiv}.fastq
 samtools fastq ${out}${indiv}/${indiv}_${lib}_duplex_splitduplex.sam >> ${out}${indiv}/${indiv}.fastq
 ```
-Adapter trimming was not performed as Dorado now performs trimming as part of the basecalling process ([discussed briefly here]()). [Chopper](https://github.com/wdecoster/chopper) v0.5.0, which is the Rust implementation of NanoFilt & NanoLyse, was used to trim reads to a minimum Q score of 20 and 3 minimum lengths, 1kb, 5kb and 10kb.  
+Adapter trimming was not performed as Dorado now performs trimming as part of the basecalling process. [Chopper](https://github.com/wdecoster/chopper) v0.5.0, which is the Rust implementation of NanoFilt & NanoLyse, was used to trim reads to a minimum Q score of 20 and 3 minimum lengths, 1kb, 5kb and 10kb.  
 ```
 cat ${out}${indiv}/${indiv}.fastq | chopper -q 20 -l 1000 > ${out}${indiv}/${indiv}_dorado_q20_1kb.fq
 cat ${out}${indiv}/${indiv}.fastq | chopper -q 20 -l 5000 > ${out}${indiv}/${indiv}_dorado_q20_5kb.fq

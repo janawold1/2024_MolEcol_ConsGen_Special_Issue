@@ -220,22 +220,22 @@ Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Es
 for SAMP in ${BAM}*_markdup_autosomes.bam
     do
     BASE=$(basename $SAMP _markdup_autosomes.bam)
-    angsd -i $SAMP -anc $ANC -ref $REF -out ${ANGSD}samtools/heterozygosity/${BASE} -dosaf 1 -GL 1 -doCounts 1
-    angsd -i $SAMP -anc $ANC -ref $REF -sites $SITES -out ${ANGSD}neutral/heterozygosity/${BASE} -dosaf 1 -GL 1 -doCounts 1
-    realSFS ${ANGSD}samtools/heterozygosity/${BASE}.saf.idx > ${ANGSD}samtools/heterozygosity/${BASE}_est.ml
-    realSFS ${ANGSD}neutral/heterozygosity/${BASE}.saf.idx > ${ANGSD}neutral/heterozygosity/${BASE}_est.ml
+    angsd -i $SAMP -anc $REF -ref $REF -out ${ANGSD}samtools/heterozygosity/${BASE}_fold -dosaf 1 -GL 1 -doCounts 1
+    angsd -i $SAMP -anc $REF -ref $REF -sites $SITES -out ${ANGSD}neutral/heterozygosity/${BASE}_fold -dosaf 1 -GL 1 -doCounts 1
+    realSFS -fold 1 ${ANGSD}samtools/heterozygosity/${BASE}_fold.saf.idx > ${ANGSD}samtools/heterozygosity/${BASE}_fold_est.ml
+    realSFS -fold 1 ${ANGSD}neutral/heterozygosity/${BASE}_fold.saf.idx > ${ANGSD}neutral/heterozygosity/${BASE}_fold_est.ml
 done
 ```
 Once the SFS was estimated for each individual, the number of sites was estimated from the sum of all scaffold sizes included in the bam file and output to a file.
 ```
 printf "Sample\tHeterozygosity\tTool\tPopulation\n" > ${ANGSD}individual_het.tsv 
 
-for SAMP in ${ANGSD}${TOOL}/heterozygosity/*_est.ml
+for SAMP in ${ANGSD}${TOOL}/heterozygosity/*_fold_est.ml
     do
-    BASE=$(basename $SAMP _est.ml)
+    BASE=$(basename $SAMP _fold_est.ml)
     TOT=$(awk '{print $1 + $2 + $3}' $SAMP)
     HET=$(awk -v var=$TOT '{print $2/var}' $SAMP)
-    if [[ "$BASE" == *"AU"* ]]
+    if [[ "$BASE" == "AU"* ]]
         then
         printf "$BASE\t$HET\t$TOOL\tAU\n" >> ${ANGSD}individual_het.tsv
     elif [[ "$BASE" == "H0"* ]]

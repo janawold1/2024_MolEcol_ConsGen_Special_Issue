@@ -1,6 +1,5 @@
 # Mitochondrial Diversity and Differentiation
-To assess mitochondrial differentiation between Australian fairy tern and tara iti, we assembled mito-genomes using [NOVOPlastyv4.3.3](https://github.com/ndierckx/NOVOPlasty). Assemblies were seeded using the [Little tern mito-genome assembly](https://www.ncbi.nlm.nih.gov/nuccore/NC_028176.1) and concatenated reads from multiple libraries.
-
+To assess mitochondrial differentiation between Australian fairy tern and tara iti, we assembled mito-genomes using [NOVOPlastyv4.3.3](https://github.com/ndierckx/NOVOPlasty). Assemblies were seeded using the congeneric little tern ([*Sternula albifrons*](https://www.ncbi.nlm.nih.gov/nuccore/NC_028176.1)) mito-genome assembly and concatenated reads from multiple libraries.  
 ```
 zcat ${dir}lib{1,2}/AU01_*_R1.fq.gz > little_tern_seeded_mtDNA/AU01_R1.fastq
 zcat ${dir}lib{1,2}/AU01_*_R2.fq.gz > little_tern_seeded_mtDNA/AU01_R2.fastq
@@ -50,4 +49,3 @@ Use Quality Scores    = yes
 Reduce ambigious N's  = yes
 Output path           = little_tern_seeded_mtDNA/AU01_mitoassembly/
 ```
-Once circularised genomes were assembled, MEGAv11 was used to align Australian fairy tern (*Sternula nereis nereis*), tara iti (*S. n. davisae*), little tern (*S. albifrons*) and common tern (*Sterna hirundo*) for phylogenetic analysis.  
