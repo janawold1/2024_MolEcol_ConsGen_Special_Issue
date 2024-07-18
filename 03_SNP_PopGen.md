@@ -25,7 +25,7 @@ angsd -P 16 -b ${ANGSD}KI.list -ref $KREF -out ${ANGSD}qc/KI.qc \
 ```
 Courtesy of scripts provided by [@mfumagalli](https://github.com/mfumagalli/ngsTools/blob/master/TUTORIAL.md), the distributions of these sites were visualised with `Rscript ~/ngsTools/Scripts/plotQC.R GLOBAL.qc` and meaningful filtering thresholds were identified. Below is a table outlining filtering thresholds for subsequent population analyses.
 
-|        Population        |minimum mapQ|minimum Q|minimum depth|maximum depth|Number of individuals|
+|        Population        |Minimum MapQ|Minimum Q|Minimum Depth|Maximum Depth|Number of Individuals|
 | ------------------------ | ---------- | ------- | ----------- | ----------- | ------------------- |
 |Australian Fairy Tern (WA)|     20     |    20   |     200     |     420     |         19          |
 |         Tara iti         |     20     |    20   |     120     |     280     |         15          |
@@ -34,21 +34,15 @@ Courtesy of scripts provided by [@mfumagalli](https://github.com/mfumagalli/ngsT
 
  Below is code run for analyses performed on alignments of fairy terns to the tara iti reference scaffolded using the common tern assembly (see [00_genome_assembly.md](https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/00_genome_assembly.md)) and alignments of kakī to the high-quality reference assembly for this species (see [here](https://www.genomics-aotearoa.org.nz/our-work/completed-projects/high-quality-genomes) for details). All analyses for each group were performed in a similar manner for downstream comparisons. Quality thresholds were adjusted as per the table above.  
 
-The below table outlines the number of sites retained with the thresholds above for the WA population of Australian fairy tern (`AU`) dataset, the tara iti dataset (`TI`), the entire the fairy tern dataset (`GLOBAL`), and the kakī dataset (`KI`) for analyses.  
-|   Data Set    |     AU    |    TI   |  GLOBAL |   Kakī  |
-|:-------------:|:---------:|:-------:|:-------:|:-------:|
-| Neutral Sites |  842,606  | 167,370 | XXX,XXX | XXX,XXX |
-| Whole Genome  | 1,625,899 | 335,979 | XXX,XXX | XXX,XXX |
-
 ## Excluding putative coding Regions
-Neither the tara iti or kakī reference assemblies have high-quality transcriptomes. This is significant given the potential of selection to influence some of the analyses performed here (e.g., estimates of historical N<sub>e</sub>). To assess the potential consequences of the inclusion of these regions, and to have a 'first look' at the genomic diversity around coding regions, we performed *ab initio* gene prediction using [AUGUSTUS](https://github.com/Gaius-Augustus/Augustus/tree/master) v3.5.0.  
+Neither the tara iti or kakī reference assemblies have transcriptomes. To assess the potential consequences of the inclusion of regions under selection, and to have a 'first look' at the genomic diversity around coding regions, we performed *ab initio* gene prediction using [AUGUSTUS](https://github.com/Gaius-Augustus/Augustus/tree/master) v3.5.0.  
 ```
 augustus --sample=100 --alternatives=false --temperature=3 \
     --species=chicken reference/Katie_ragtag.fa > reference/Katie_AUGUSTUS.gff
 augustus --sample=100 --alternatives=false --temperature=3 \
     --species=chicken reference/himNova-hic-scaff.fa > reference/kaki_AUGUSTUS.gff
 ```
-Autosomal chromosomes were extracted from these predictions, and [BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.30.0 was then used to sort, and merge these putative gene regions. An additional 1kb of sequence on either side of annotations were included to reduce linkage.  
+Scaffolds that adhered to expected population sequence coverage (e.g., ~10x) and likely represented autosomal chromosomes were extracted from these predictions. [BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.30.0 was then used to sort, and merge these putative gene regions. An additional 1kb of sequence on either side of annotations were included to reduce linkage.  
 
 First, the annotations for sex chromosomes, unplaced scaffolds, or those that consistently did not adhere to expected sequencing depths were excluded as they likely represented misassemblies. Duplicate regions were then merged with `bedtools merge`.  
 ```
@@ -90,7 +84,7 @@ bedtools complement \
     -i angsd/augustus_autosomal_predictions_merged_add1kb.bed \
     -g reference/Katie_autosome_lengths.txt > angsd/Katie_neutral_sites.bed
 ```
-For the fairy tern, this left 27,337 regions covering 562,663,009 bp for analyses. This corresponds to roughly 47% of the genome.  
+For the fairy tern, this left 27,337 regions covering 562,663,009 bp for analyses, which roughly corresponds to 47% of the genome.  
 
 This file was then indexed for ANGSD with `angsd sites`.  
 ```
@@ -98,13 +92,13 @@ angsd sites index TI_scaffolded_neutral_regions.bed
 ```
 ## Diversity Indices
 ### Runs of Homozygosity 
-Two methods were used to estimate runs of homozygosity, [ROHAN](https://github.com/grenaud/rohan) and an approach using ANGSD.  
+[ROHAN](https://github.com/grenaud/rohan)was used to call runs of homozygosity (ROHs). Following the recommendations, we removed all PCR-duplicates from BAM alignment files, estimated a transition/transversion ratio with [VCFtools](https://vcftools.github.io/index.html) v0.1.15, and defined an allowable level of heterozygosity within a 50kb window.  
 
-For ROHAN (and SV discovery), all PCR-duplicates were removed as recommended.  
+Starting with SAMtools, we removed PCR duplicates from our markdup files.  
 ```
 samtools markdup -@16 -r --write-index *_markdup_autosomes.bam *_rohan.bam
 ```
-And the Ts/Tv ratio was estimated as a prior for ROHan with VCFtools v0.1.15 using the BCF outputs from ANGSD.
+And the Ts/Tv ratio was estimated as a prior for ROHan with VCFtools using the BCF outputs from ANGSD.
 ```
 for POP in AU TI
     do
@@ -220,17 +214,21 @@ Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Es
 for SAMP in ${BAM}*_markdup_autosomes.bam
     do
     BASE=$(basename $SAMP _markdup_autosomes.bam)
-    angsd -i $SAMP -anc $REF -ref $REF -out ${ANGSD}samtools/heterozygosity/${BASE}_fold -dosaf 1 -GL 1 -doCounts 1
-    angsd -i $SAMP -anc $REF -ref $REF -sites $SITES -out ${ANGSD}neutral/heterozygosity/${BASE}_fold -dosaf 1 -GL 1 -doCounts 1
-    realSFS -fold 1 ${ANGSD}samtools/heterozygosity/${BASE}_fold.saf.idx > ${ANGSD}samtools/heterozygosity/${BASE}_fold_est.ml
-    realSFS -fold 1 ${ANGSD}neutral/heterozygosity/${BASE}_fold.saf.idx > ${ANGSD}neutral/heterozygosity/${BASE}_fold_est.ml
+    angsd -i $SAMP -anc $REF -ref $ANC -out ${ANGSD}samtools/heterozygosity/${BASE} \
+        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+        -minMapQ 20 -minQ 20 -dosaf 1 -GL 1 -doCounts 1
+    angsd -i $SAMP -anc $REF -ref $ANC -sites ${SITES} -out ${ANGSD}neutral/heterozygosity/${BASE} \
+        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+        -minMapQ 20 -minQ 20 -dosaf 1 -GL 1 -doCounts 1-dosaf 1 -GL 1 -doCounts 1
+    realSFS ${ANGSD}samtools/heterozygosity/${BASE}.saf.idx > ${ANGSD}samtools/heterozygosity/${BASE}_est.ml
+    realSFS ${ANGSD}neutral/heterozygosity/${BASE}.saf.idx > ${ANGSD}neutral/heterozygosity/${BASE}_est.ml
 done
 ```
 Once the SFS was estimated for each individual, the number of sites was estimated from the sum of all scaffold sizes included in the bam file and output to a file.
 ```
 printf "Sample\tHeterozygosity\tTool\tPopulation\n" > ${ANGSD}individual_het.tsv 
 
-for SAMP in ${ANGSD}${TOOL}/heterozygosity/*_fold_est.ml
+for SAMP in ${ANGSD}${TOOL}/heterozygosity/*_est.ml
     do
     BASE=$(basename $SAMP _fold_est.ml)
     TOT=$(awk '{print $1 + $2 + $3}' $SAMP)
@@ -246,17 +244,52 @@ for SAMP in ${ANGSD}${TOOL}/heterozygosity/*_fold_est.ml
     fi
 done
 ```
-
+### Local Heterozygosity 
+```
+for POP in AU TI KI
+    do
+    if [[ "$POP" == "AU" ]]
+        then
+        angsd -bam ${ANGSD}${POP}.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/heterozygosity/${POP}_perSite \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
+            -GL 1 -doHWE 1 -domajorminor 1 -doMaf 1 -SNP_pval 1e-6
+        angsd -bam ${ANGSD}${POP}.list -ref $TREF -anc $TANC -sites $TSITES -out ${ANGSD}samtools/heterozygosity/${POP}_perSite \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
+            -GL 1 -doHWE 1 -domajorminor 1 -doMaf 1 -SNP_pval 1e-6
+    elif [[ "$POP" == "TI" ]]
+        then
+        angsd -bam ${ANGSD}${POP}.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/heterozygosity/${POP}_perSite \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
+            -GL 1 -doHWE 1 -domajorminor 1 -doMaf 1 -SNP_pval 1e-6
+        angsd -bam ${ANGSD}${POP}.list -ref $TREF -anc $TANC -sites $TSITES -out ${ANGSD}samtools/heterozygosity/${POP}_perSite \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
+            -GL 1 -doHWE 1 -domajorminor 1 -doMaf 1 -SNP_pval 1e-6
+    else
+        angsd -bam ${ANGSD}${POP}.list -ref $KREF -anc $KANC -out ${ANGSD}samtools/heterozygosity/${POP}_perSite \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 24 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
+            -GL 1 -doHWE 1 -domajorminor 1 -doMaf 1 -SNP_pval 1e-6
+        angsd -bam ${ANGSD}${POP}.list -ref $KREF -anc $KANC -sites $KSITES -out ${ANGSD}neutral/heterozygosity/${POP}_perSite \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 24 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
+            -GL 1 -doHWE 1 -domajorminor 1 -doMaf 1 -SNP_pval 1e-6
+    fi
+done
+```
 ## Population Structure
 ### MDS
-To construct a MDS for fairy tern populations, we first ran ANGSD as below. Notably, the only change is the `-doGeno 8` flag.  
+To construct a MDS for fairy tern populations, we first ran ANGSD as below. Notably, here we add the `-doGeno 8` flag.  
 ```
 angsd -P 26 -b GLOBAL.list -ref $REF -anc $ANC -out ${ANGSD}structure_MDS/GLOBAL \
     -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
     -minMapQ 20 -minQ 20 -minInd 34 -setMinDepth 272 -setMaxDepth 630 -doCounts 1 \
     -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 8 -doPost 1
 ```
-This command not only generates the required `*.mafs.gz`, but also the `*.geno.gz`, which contains posterior probabilities of all possible genotypes required for estimating genetic distance with [ngsDistv1.0.10](github.com/mfumagalli/ngsTools). In addition, a `pops.label` file denoting the population of origin (one entry on a new line for each samples) is necessary for estimating genetic distance.  
+This command not only generates the required `*.mafs.gz`, but also the `*.geno.gz`, which contains posterior probabilities of all possible genotypes required for estimating genetic distance with [ngsDistv1.0.10](https://github.com/mfumagalli/ngsTools). In addition, a `pops.label` file denoting the population of origin (one entry on a new line for each samples) is necessary for estimating genetic distance.  
 ```
 NSITES=$(zcat GLOBAL.mafs.gz | tail -n +2 | wc -l)
 echo $NSITES
@@ -273,17 +306,11 @@ tail -n +3 ${ANGSD}structure_MDS/GLOBAL_dist | Rscript --vanilla --slave getMDS.
 
 head structure_MDS/GLOBAL.mds
 ```
-And finally plot the MDS.  
-```
-Rscript plotMDS.R -i ${ANGSD}distance/GLOBAL.mds \
-    -c 1-2 -a ${ANGSD}structure_MDS/GLOBAL_clst \
-    -o ${ANGSD}structure_MDS/GLOBAL_mds.pdf
-```
-
+This MDS output is plotted in [06_visualisations.ipynb].  
 ## Summary Statistics
 ### Site Frequency Spectrum
 #### Inferring Ancestral alleles
-It is important to have the ancestral state for some of the analyses below. To this end, we used short reads sequenced by the [B10K](https://b10k.genomics.cn/species.html) consortium and stored by the China National GeneBank DataBase (CNGBdb) for large-bill tern ([*Phaetusa simplex*](https://db.cngb.org/search/organism/297813/) NCBI ID: 297813, CNGB Sample ID: CNS0103161, CNGB Experiment ID: CNX0082959) and black skimmer ([*Rhynchops niger*](https://db.cngb.org/search/organism/227184/) NCBI ID: 227184, CNGB Sample ID: CNS0103105, CNGB Experiment ID: CNX0082867 - CNX0082869) to polarise the site frequency spectrum for fairy terns. Whereas resequence data generated by [Galla et al XXX]() for the avocet (*XXX*) and generated by [Forsdick XXX](thesis link) for pied stilt (*Himantopus XXX*) were used to polarise kakī. This ([brief discussion](https://www.biostars.org/p/298013/)) outlines the benefit of using this approach for ANGSD-base analyses. The reads for each of the outgroups were trimmed, aligned, and duplicates marked in the same manner as the fairy tern and kakī population short-reads.  
+It is important to have the ancestral state for some of the analyses below. To this end, we used short reads sequenced by the [B10K](https://b10k.genomics.cn/species.html) consortium and stored by the China National GeneBank DataBase (CNGBdb) for large-bill tern ([*Phaetusa simplex*](https://db.cngb.org/search/organism/297813/) NCBI ID: 297813, CNGB Sample ID: CNS0103161, CNGB Experiment ID: CNX0082959) and black skimmer ([*Rhynchops niger*](https://db.cngb.org/search/organism/227184/) NCBI ID: 227184, CNGB Sample ID: CNS0103105, CNGB Experiment ID: CNX0082867 - CNX0082869) to polarise the site frequency spectrum for fairy terns. Whereas resequence data generated by [Galla et al 2019](https://doi.org/10.3390/genes10010009) for the avocet (*Recurvirostra avosetta*) and pied stilt (*Himantopus himantopus*) were used to polarise kakī. This ([brief discussion](https://www.biostars.org/p/298013/)) outlines the benefit of using this approach for ANGSD-base analyses. The reads for each of the outgroups were trimmed, aligned, and duplicates marked in the same manner as the fairy tern and kakī population short-reads.  
 ```
 angsd -P 16 -doFasta 2 -doCounts 1 -out ${ANGSD}tern_ancestral -i ${DIR}merged_tern_markdup_autosomes.bam
 angsd -P 16 -doFasta 2 -doCounts 1 -out ${ANGSD}stilt_ancestral -i ${DIR}merged_stilt_markdup_autosomes.bam
@@ -335,8 +362,8 @@ realSFS -P 40 -anc ${KANC} -ref ${KREF} ${ANGSD}${TOOL}sfs/KI.saf.idx > ${ANGSD}
 realSFS -P 40 -anc ${TANC} -ref ${TREF} ${ANGSD}${TOOL}/sfs/AU.saf.idx ${ANGSD}${TOOL}/sfs/TI.saf.idx > ${ANGSD}${TOOL}/sfs/GLOBAL.sfs
 ```
 
-### Estimating Population Differentiation (F<sub>ST</sub>)
-Here we estimate F<sub>ST</sub> between Australian fairy tern populations in Western Australia and tara iti. To do so, we leverage the site frequency spectrum (SFS) generated above.  
+### Estimating Population Differentiation (Watterhson's Theta)
+Here we estimate Theta (F<sub>ST</sub>) between Australian fairy tern populations in Western Australia and tara iti. To do so, we leverage the site frequency spectrum (SFS) generated above.  
 ```
 realSFS fst index ${DIR}${TOOL}/sfs/AU.saf.idx ${DIR}${TOOL}/sfs/TI.saf.idx -sfs ${DIR}${TOOL}/sfs/GLOBAL.sfs -fstout ${DIR}${TOOL}/distance/GLOBAL -whichFst 1
 realSFS fst stats2 ${DIR}${TOOL}/distance/GLOBAL.fst.idx \
@@ -373,7 +400,7 @@ for POP in AU TI KI
         angsd -P 26 -b ${ANGSD}${POP}.list -ref $REF -anc $ANC -sites $SITES -out ${ANGSD}${TOOL}diversity/${POP}_pest \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
-            -GL 1 -doSaf 1 -pest ${ANGSD}${TOOL/}sfs/${POP}.sfs
+            -GL 1 -doSaf 1 -pest ${ANGSD}${TOOL}/sfs/${POP}.sfs
         realSFS -p 40 -anc ${ANC} -ref ${REF} ${ANGSD}${TOOL}diversity/${POP}_pest.saf.idx > ${ANGSD}${TOOL}diversity/${POP}_pest.sfs
         realSFS saf2theta ${ANGSD}${TOOL}/diversity/${POP}_pest.saf.idx -sfs ${ANGSD}${TOOL}diversity/${POP}_pest.sfs -outname ${ANGSD}${TOOL}/diversity/${POP}_pest
         thetaStat do_stat ${ANGSD}${TOOL}/diversity/${POP}_pest.thetas.idx -win 10000 -step 1000 -outnames ${ANGSD}${TOOL}diversity/${POP}_pest_thetas_10KBwindows_1KBstep
@@ -447,25 +474,34 @@ bedtools sort -i kaki_genome/busco/merged_single_copy_busco_sequences.gff > kaki
 bedtools merge -i kaki_genome/kaki_single_copy_BUSCO.bed > kaki_genome/kaki_single_copy_BUSCO.merged.bed
 ```
 We then filtered the `BED` file to excluded unplaced scaffolds and sex chromosomes (consistant with above population analyses) and indexed this `BED` file with ANGSD.
-```
-FBUSCO=Katies_genome/fairy_single_copy_BUSCO.merged.bed
-KBUSCO=kaki_genome/kaki_single_copy_BUSCO.merged.bed
 
-for POP in AU TI KI
+### Sites Polarised with ANGSD
+To estimate masked and realised load in each fairy tern population and kakī we used ANGSD to output the major minor alleles, the called genotype, the posterior probability of the called genotype and all possible genotypes (`-doGeno 31`) to a BCF file (`-doBcf 1`). 
+```
+for POP in AU TI
     do
-    if [[ $POP == "KI" ]]
-    then
-        bcftools mpileup --threads 26 -Ou -Q30 -q20 -f $KREF -R ${KBUSCO} \
-            -b ${ANGSD}${POP}.list -a DP,AD,ADF,ADR,SP | \
-            bcftools call --threads 26 -mv -O b -o ${LOAD}${POP}_calls.bcf
-    else
-        bcftools mpileup --threads 26 -Ou -Q30 -q20 -f $FREF -R ${FBUSCO} \
-            -b ${ANGSD}${POP}.list -a DP,AD,ADF,ADR,SP | \
-            bcftools call --threads 26 -mv -O b -o ${LOAD}${POP}_calls.bcf
+    if [[ "$POP" == "AU" ]]
+        then
+        angsd -P 24 -b ${ANGSD}${POP}.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
+            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
+        elif [[ "$POP" == "TI" ]]
+        then
+        angsd -P 24 -b ${ANGSD}${POP}.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
+            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
+        else
+        angsd -P 24 -b ${ANGSD}${POP}.list -ref $KREF -anc $KANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
+            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
+            -minMapQ 20 -minQ 20 -minInd 24 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
+            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
     fi
 done
 ```
-After this step, a total of 1,346,181, 289,557 & X,XXX,XXX variants were called for Australian fairy tern, tara iti, and kakī respectively.  
+
+### SIFT
 
 We then used [SIFT4G](https://github.com/rvaser/sift4g) to identify deleterious sites within these BUSCO genes. To do so, we leveraged the outputs from BUSCO to create a database called for our tara iti and kakī reference genomes.  
 
@@ -532,32 +568,6 @@ SIFT databases were then constructed.
 ```
 sudo perl make-SIF-db-all.pl -c fairy_terns.txt
 ```
-### Sites Polarised with ANGSD
-To estimate masked and realised load in each fairy tern population and kakī we used ANGSD to output the major minor alleles, the called genotype, the posterior probability of the called genotype and all possible genotypes (`-doGeno 31`) to a BCF file (`-doBcf 1`). 
-```
-for POP in AU TI
-    do
-    if [[ "$POP" == "AU" ]]
-        then
-        angsd -P 24 -b ${ANGSD}${POP}.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
-            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
-            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
-        elif [[ "$POP" == "TI" ]]
-        then
-        angsd -P 24 -b ${ANGSD}${POP}.list -ref $TREF -anc $TANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
-            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
-            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
-        else
-        angsd -P 24 -b ${ANGSD}${POP}.list -ref $KREF -anc $KANC -out ${ANGSD}samtools/genotypes/${POP}_whole-genome_polarized \
-            -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-            -minMapQ 20 -minQ 20 -minInd 24 -setMinDepth 700 -setMaxDepth 1200 -doCounts 1 \
-            -doPost 1 -postCutoff 0.95 -doBcf 1 -GL 1 -doMajorMinor 5 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 31 --ignore-RG 0
-    fi
-done
-```
-
 ### Variant Effect Predictor
 First attempted to fix `GFF` to be more compatible with VEP.  
 ```
@@ -571,17 +581,11 @@ cat references/Katie_BUSCO_check.gff | sort -k1,1 -k4,4n -k5,5n -t$'\t' | bgzip 
 ```
 Then ran VEP.  
 ```
-vep -i AU_whole-genome_polarized.vcf \
+vep -i GLOBAL_whole-genome_polarized.vcf \
     --custom references/Katie_BUSCO_check.gff.gz,FAIRY_GFF,gff \
     --fasta references/Katie_5kb_ragtag_fold60.fa.gz \
     --everything \
-    -o vep_data/angsd_high_confidence_BUSCO_SNPs/AU_whole-genome_polarized
-
-vep -i TI_whole-genome_polarized.vcf \
-    --custom references/Katie_BUSCO_check.gff.gz,FAIRY_GFF,gff \
-    --fasta references/Katie_5kb_ragtag_fold60.fa.gz \
-    --everything \
-    -o vep_data/angsd_high_confidence_BUSCO_SNPs/TI_whole-genome_polarized
+    -o vep_data/angsd_high_confidence_BUSCO_SNPs/GLOBAL_whole-genome_polarized
 
 vep -i KI_whole-genome_polarized.vcf \
     --custom references/kaki_BUSCO_check.gff.gz,FAIRY_GFF,gff \
@@ -589,22 +593,60 @@ vep -i KI_whole-genome_polarized.vcf \
     --everything \
     -o vep_data/angsd_high_confidence_BUSCO_SNPs/KI_whole-genome_polarized
 ```
-Preparing data for plotting - Identifying and extracting sites by impact.  
+### Intersecting calls between VEP & SIFT
+To find sites that both had an impact (VEP) and were deleterious (SIFT), we first filtered the SIFT output for those sites with a SIFT score <= 0.05.
 ```
-grep IMPACT=LOW vep_data/angsd_high_confidence_BUSCO_SNPs/AU_whole-genome_polarized | cut -f2 | sed 's/:/\t/g' | sort | uniq > AU_ANGSD_lowImpact_sites.tsv
-grep IMPACT=MODERATE vep_data/angsd_high_confidence_BUSCO_SNPs/AU_whole-genome_polarized | cut -f2 | sed 's/:/\t/g' | sort | uniq > AU_ANGSD_moderateImpact_sites.tsv
-grep IMPACT=HIGH vep_data/angsd_high_confidence_BUSCO_SNPs/AU_whole-genome_polarized | cut -f2 | sed 's/:/\t/g' | sort | uniq > AU_ANGSD_highImpact_sites.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF} GLOBAL_whole-genome_SIFTannotations.xls | awk '{ if ($6 <= 0.05) print $0}' > deleterious_SIFT_fairy.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF} GLOBAL_whole-genome_SIFTannotations.xls | awk '{ if ($6 > 0.05) print $0}' > tolerant_SIFT_fairy.tsv
+
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF} kaki_whole-genome_SIFTannotations.xls | awk '{ if ($6 <= 0.05) print $0}' > deleterious_SIFT_kaki.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF} kaki_whole-genome_SIFTannotations.xls | awk '{ if ($6 > 0.05) print $0}' > tolerant_SIFT_kaki.tsv
 ```
-Extracting site frequency.
+SIFT sites were then extracted, and used to determine impact from VEP.
 ```
-for IMPACT in lowImpact moderateImpact highImpact
+
+grep -v "#" GLOBAL_whole-genome.tsv | grep -v IMPACT=MODIFIER > VEP_impacts_fairy.tsv
+grep -v "#" KI_whole-genome.tsv | grep -v IMPACT=MODIFIER > VEP_impacts_kaki.tsv
+
+for POP in fairy kaki
     do
-    printf "EXTRACTING ALLELE FREQUENCY OF $IMPACT SITES"
-    bcftools query -T AU_ANGSD_${IMPACT}_sties.tsv \
-        -f '%CHROM\t%POS\t%AF\t${IMPACT}\tAU\n' \
-        vep_data/AU_whole-genome_polarized.vcf >> vep_data/AU_ANGSD_impact_summary.tsv
-    bcftools query -T TI_ANGSD_${IMPACT}_sties.tsv \
-        -f '%CHROM\t%POS\t%AF\t${IMPACT}\tTI\n' \
-        vep_data/TI_whole-genome_polarized.vcf >> vep_data/TI_ANGSD_impact_summary.tsv
+    awk '{print $1":"$2}' deleterious_SIFT_${POP}.tsv > SIFT_sites_${POP}.txt
+    while read -r line
+        do
+        grep "$line" VEP_impacts_${POP}.tsv >> SIFT_VEP_intersect_${POP}.txt
+    done < SIFT_sites_${POP}.txt
 done
+```
+A brief check showed that all sites marked deleterious in SIFT had some impact in VEP.  
+These intersecting sites were then extracted from the filtered SNPs, and allele frequency estimated for each fairy tern population.
+```
+while read -r line
+    do
+    CHROM=$(echo $line | awk '{print $1}')
+    POSIT=$(echo $line | awk '{print $2}')
+    MUTAT=$(echo $line | awk '{print $3}')
+    STATE=$(echo $line | awk '{print $8}')
+    AALLE=$(bcftools query -t ${CHROM}:${POSIT} -f '[%GT\n]' GLOBAL_whole-genome_polarised_filtered_AU.vcf | sed 's%0/0%0%g' | sed 's%0/1%1%g'| sed 's%1/1%2%g' | awk '{sum += $1}; END {print sum}')
+    TALLE$(bcftools query -t ${CHROM}:${POSIT} -f '[%GT\n]' GLOBAL_whole-genome_polarised_filtered_TI.vcf | sed 's%0/0%0%g' | sed 's%0/1%1%g'| sed 's%1/1%2%g' | awk '{sum += $1}; END {print sum}')
+    printf "$CHROM\t$POSIT\t$MUTAT\t$AALLE\t$STATE\tAU\n" >> pop_harmful_allele_frequency.tsv
+    printf "$CHROM\t$POSIT\t$MUTAT\t$TALLE\t$STATE\tTI\n" >> pop_harmful_allele_frequency.tsv
+done < deleterious_SIFT_fairy.tsv
+```
+Then we counted the number of alleles per site, per individual for all those nonsynonymous mutations classed as either intolerant, tolerant.  
+```
+while read -r line
+    do
+    CHROM=$(echo $line | awk '{print $1}')
+    POSIT=$(echo $line | awk '{print $2}')
+    bcftools query -t ${CHROM}:${POSIT} -f '[%CHROM\t%POS\t$SAMPLE\t%GT\tAU\tTolerant]' GLOBAL_whole-genome_filtered_AU.vcf >> indiv_harmful_allele_frequency.tsv
+    bcftools query -t ${CHROM}:${POSIT} -f '[%CHROM\t%POS\t$SAMPLE\t%GT\tTI\tTolerant]' GLOBAL_whole-genome_filtered_TI.vcf >> indiv_harmful_allele_frequency.tsv
+done < tolerant_SIFT_fairy.tsv
+
+while read -r line
+    do
+    CHROM=$(echo $line | awk '{print $1}')
+    POSIT=$(echo $line | awk '{print $2}')
+    bcftools query -t ${CHROM}:${POSIT} -f '[%CHROM\t%POS\t$SAMPLE\t%GT\tAU\tIntolerant]' GLOBAL_whole-genome_filtered_AU.vcf >> indiv_harmful_allele_frequency.tsv
+    bcftools query -t ${CHROM}:${POSIT} -f '[%CHROM\t%POS\t$SAMPLE\t%GT\tTI\tIntolerant]' GLOBAL_whole-genome_filtered_TI.vcf >> indiv_harmful_allele_frequency.tsv
+done < deleterious_SIFT_fairy.tsv
 ```

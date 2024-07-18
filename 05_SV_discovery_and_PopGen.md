@@ -101,8 +101,8 @@ Genotypes for each individual were estimated and then plotted in 06_visualisatio
 while read -r line
     do
     echo $line
-    TOT=$(bcftools query -s ${line} -i 'GT!="mis" & GQ>=15 & SVMODEL=="AGGREGATED"' -f '[%GT\n]' graphtyper/fairy_manta_graphtyper.vcf | wc -l)
-    HET=$(bcftools query -s ${line} -i 'GT!="mis" & GQ>=15 & SVMODEL=="AGGREGATED"' -f '[%GT\n]' graphtyper/fairy_manta_graphtyper.vcf | sort | uniq -c | awk '{print $1}' | tr '\n' '\t' | awk -v var=$TOT '{print $2/var}')
+    TOT=$(bcftools query -s ${line} -i 'GT!="mis" & GQ>=25 & SVMODEL=="AGGREGATED"' -f '[%GT\n]' graphtyper/fairy_manta_graphtyper.vcf | wc -l)
+    HET=$(bcftools query -s ${line} -i 'GT!="mis" & GQ>=25 & SVMODEL=="AGGREGATED" & GT=="het"' -f '[%GT\n]' graphtyper/fairy_manta_graphtyper.vcf | wc -l | awk -v var=$TOT '{print $1/var}')
     if [[ "$line" == "AU"* ]]
     then
         printf "$line\t$HET\tAU\n" >> graphtyper/individual_svHet.tsv
@@ -110,13 +110,13 @@ while read -r line
         then
         printf "$line\t$HET\tKI\n" >> graphtyper/individual_svHet.tsv
     else
-        printf "$line\t$HET\tNZ\n" >> graphtyper/individual_svHet.tsv
+        printf "$line\t$HET\tTI\n" >> graphtyper/individual_svHet.tsv
     fi
 done < samples.txt
 ```
 
 ### Site Frequency Spectrum
-To generate a site frequency spectrum for SVs, we generated population specific VCFs for 
+To generate a site frequency spectrum for SVs, we generated population specific VCFs for each group. 
 
 ## Population Structure and Differentiation
 ### MDS
