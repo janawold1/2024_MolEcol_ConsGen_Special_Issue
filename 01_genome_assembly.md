@@ -147,7 +147,5 @@ ragtag.py scaffold -o reference/Katie_ragtag/ reference/common_tern.fasta refere
 **Table 3. Final assembly summary statistics:**
 | Read Inputs | % Complete BUSCO | % Missing BUSCO | # Scaffolds | N50 (Mbp) | L50 | Largest Scaffold Size (Mbp) | # N's per 100 kbp |
 |:-----------:|:----------------:|:---------------:|:-----------:|:---------:|:---:|:---------------------------:|:-----------------:|
-|   Q20, 5kb  |       97.7       |       1.9       |     298     |    84.9   |  5  |            219.3            |       18.7        |
+|   Q20, 5kb  |       97.7       |       1.9       |     137     |    84.9   |  5  |            219.3            |       18.7        |
 
-## Genome quality using Merqury
-Finally, we assessed the quality of the scaffolded genome using [Merqury](https://github.com/marbl/merqury) vX.X and [Meryl](https://github.com/marbl/meryl) vX.X.  
