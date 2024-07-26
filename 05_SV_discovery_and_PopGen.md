@@ -98,10 +98,6 @@ This genotyping and filtering approach was also used for kakī.
 |    Total    |       X,XXX      |         2,672         |     X,XXX    |      1,740      |
 
 
-## Diversity
-### SV Type and Size distributions
-XXX
-
 ### Individual Heterozygosity (H<sub>o</sub>)
 Genotypes for each individual were estimated and then plotted in 06_visualisations.ipynb.  
 
@@ -137,17 +133,12 @@ tail -n +3 graphtyper/fairy_mds/GLOBAL_svDist | Rscript --vanilla --slave getMDS
     --no_header --data_symm -n 4 -m "mds" -o graphtyper/fairy_mds/GLOBAL_sv.mds
 ```
 ### F<sub>ST</sub>
-
-### SVs and ROH Correlations - May be for another day
-May need to consider multi-species comparisons.  
-
-Same or different patterns observed in SNPs vs SVs? Genotyping rate will likely be low - highlight as an area of growth and how their inclusion in demographic stuff will be key.  
-
-Similar patters off heterozygosity, Fst and structure?
-
-To what extent do these SVs represent functional variation? This is the value add to the Sunnocks frame - We can't get at funcgtional variation so we look at all these indirect methods of inferring adaptive potential  
-
-Knowing number of fixed differences.  
+```
+vcftools --gzvcf 02_fairy_genotypes.vcf.gz \
+    --weir-fst-pop AU_samples.txt \
+    --weir-fst-pop TI_samples.txt \
+    --out fst/AU_TI
+```
 
 ## Intersections with BUSCO genes
 After calling BUSCO sites for the tara iti and kakī genome assemblies, we extracted regions corresponding with complete, single-copy BUSCOs and those regions corresponding to our autosomal chromosomes.
