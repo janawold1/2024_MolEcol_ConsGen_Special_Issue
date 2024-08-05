@@ -599,11 +599,11 @@ vep -i KI_whole-genome_polarized.vcf \
 ### Intersecting calls between VEP & SIFT
 To find sites that both had an impact (VEP) and were deleterious (SIFT), we first filtered the SIFT output for those sites with a SIFT score <= 0.05.
 ```
-awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF} GLOBAL_whole-genome_SIFTannotations.xls | awk '{ if ($6 <= 0.05) print $0}' > deleterious_SIFT_fairy.tsv
-awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF} GLOBAL_whole-genome_SIFTannotations.xls | awk '{ if ($6 > 0.05) print $0}' > tolerant_SIFT_fairy.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' GLOBAL_whole-genome_SIFTannotations.txt | awk '{ if ($6 <= 0.05) print $0}' > deleterious_SIFT_fairy.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' GLOBAL_whole-genome_SIFTannotations.txt | awk '{ if ($6 > 0.05) print $0}' > tolerant_SIFT_fairy.tsv
 
-awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF} kaki_whole-genome_SIFTannotations.xls | awk '{ if ($6 <= 0.05) print $0}' > deleterious_SIFT_kaki.tsv
-awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF} kaki_whole-genome_SIFTannotations.xls | awk '{ if ($6 > 0.05) print $0}' > tolerant_SIFT_kaki.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' kaki_whole-genome_SIFTannotations.txt | awk '{ if ($6 <= 0.05) print $0}' > deleterious_SIFT_kaki.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' kaki_whole-genome_SIFTannotations.txt | awk '{ if ($6 > 0.05) print $0}' > tolerant_SIFT_kaki.tsv
 ```
 SIFT sites were then extracted, and used to determine impact from VEP.
 ```
@@ -627,12 +627,10 @@ while read -r line
     do
     CHROM=$(echo $line | awk '{print $1}')
     POSIT=$(echo $line | awk '{print $2}')
-    MUTAT=$(echo $line | awk '{print $3}')
-    STATE=$(echo $line | awk '{print $8}')
     AALLE=$(bcftools query -t ${CHROM}:${POSIT} -f '[%GT\n]' GLOBAL_whole-genome_polarised_filtered_AU.vcf | sed 's%0/0%0%g' | sed 's%0/1%1%g'| sed 's%1/1%2%g' | awk '{sum += $1}; END {print sum}')
     TALLE$(bcftools query -t ${CHROM}:${POSIT} -f '[%GT\n]' GLOBAL_whole-genome_polarised_filtered_TI.vcf | sed 's%0/0%0%g' | sed 's%0/1%1%g'| sed 's%1/1%2%g' | awk '{sum += $1}; END {print sum}')
-    printf "$CHROM\t$POSIT\t$MUTAT\t$AALLE\t$STATE\tAU\n" >> pop_harmful_allele_frequency.tsv
-    printf "$CHROM\t$POSIT\t$MUTAT\t$TALLE\t$STATE\tTI\n" >> pop_harmful_allele_frequency.tsv
+    printf "$line\t$AALLE\tAU\n" >> pop_harmful_allele_frequency.tsv
+    printf "$line\t$TALLE\tTI\n" >> pop_harmful_allele_frequency.tsv
 done < deleterious_SIFT_fairy.tsv
 ```
 Then we counted the number of alleles per site, per individual for all those nonsynonymous mutations classed as either intolerant, tolerant.  
