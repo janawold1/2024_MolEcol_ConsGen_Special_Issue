@@ -5,8 +5,9 @@ There remain questions around the relative population diversity and differentiat
 
 ## Repository Structure
 Each of the markdown files included in this repository are described below, including the software and their versions used for data manipulation and analyses.  
-00) Tara iti genome assembly
-01) Illumina read QC and alignment
-02) Population genomics with ANGSD
-03) Structural variant discovery and genotyping
-04) Visualisation of outputs
+- 00 Tara iti genome assembly
+- 01 Genome Repeat Annotation
+- 02 Illumina read QC and alignment
+- 03 SNP-based population genomics with ANGSD
+- 04 Structural variant discovery, genotyping and population genomics
+- 05 Visualisation of results
