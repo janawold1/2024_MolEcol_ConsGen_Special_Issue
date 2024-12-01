@@ -278,14 +278,14 @@ grep ">" tara-iti-repeat-masked/Katie_5kg_ragtag-renamed.simple_mask.soft.comple
 grep ">" reference/Katie_5kb_ragtag.fasta | sed 's/>//g' > fasta.txt
 paste seqkit.txt fasta.txt > fairy_chrom_name_conversion.tsv
 
-awk '{print $1"_"$4"-"$5"#"$9}' Katie_5kb_ragtag-renamed.complex_mask.gff3 | sed 's/Target=//g' | sed 's%/%%g' > fairy_gff_ids.txt
+awk '{print $1"_"$4"-"$5"#"$9}' tara-iti-repeat-masked/Katie_5kb_ragtag-renamed.complex_mask.gff3 | sed 's/Target=//g' | sed 's%/%%g' > fairy_gff_ids.txt
 
 while read -r line
     do
     SEQID=$(echo $line | awk '{print $1}')
     CHROM=$(echo $line | awk '{print $2}')
     echo "CONVERTING $SEQID TO $CHROM..."
-    sed -i "s/$SEQID/$CHROM/g" gff_ids.txt
+    sed -i "s/$SEQID/$CHROM/g" fairy_gff_ids.txt
     sed -i "s/$SEQID/$CHROM/g" Katie_complex.bed
 done < fairy_chrom_name_conversion.tsv
 ```
@@ -302,7 +302,7 @@ bedtools getfasta -fi Katie_5kb_ragtag.fa -bed Katie_complex.bed -fo Katie_compl
 ```
 seqkit replace --pattern '(.+)' \
     --replacement '{kv}' \
-    --kv-file repeat_ids.txt Katie_complex.fasta \
+    --kv-file fairy_rename_ids.txt Katie_complex.fasta \
     --keep-key > Katie_complex_repeat_names.fasta
 ```
 Repeat masker has a maximum character limit of 50 for sequence names. `_RagTag` was excluded from the fasta file to run RepeatMasker.  
@@ -315,7 +315,6 @@ RepeatMasker -pa 8 -lib Katie_complex_repeat_names.fasta -dir ./ fairy_intervals
 ```
 7) Extract hit locations and their repeat types for plotting.  
 
-
 ```
 printf "Chromosome\tStart\tEnd\tSV Type\tVariant ID\tVariant Position\tRepeat\n" > fairy_repeat_hits.tsv
 
@@ -327,7 +326,7 @@ tail -n+4 fairy_intervals_renamed.fasta.out | \
     sed 's/DNA?/DNA/g' | \
     sed -e 's/:\|-\|_/\t/g' | \
     sort -k1,1 -k2,2n | \
-    awk '{FS="\t"} { if (NF>7) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$8; else print $0}' | \
+    awk '{FS="\t"} { if (NF>7) print $1"\t"$2"\t"$3"\t"$4"\t"$5"\t"$6"\t"$7; else print $0}' | \
     uniq >> fairy_repeat_hits.tsv
 ```
 Now we need to identify which variants did not align to repeat elements. For this, we leverage the full `fairy_SV_intervals.tsv` file and the assigned variant IDs from step 1. We first extract the variant ID and positions representing SVs with positive hits into a new file.  

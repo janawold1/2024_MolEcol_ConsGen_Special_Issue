@@ -543,7 +543,6 @@ done
 ```
 
 ### SIFT
-
 We then used [SIFT4G](https://github.com/rvaser/sift4g) to identify deleterious sites within these BUSCO genes. To do so, we leveraged the outputs from BUSCO to create a database called for our tara iti and kakī reference genomes.  
 
 Using the same method as when we concatenated the `GFF` files used to create `BED` files for variant discovery, we also obtained the reference protein sequences for each complete single copy BUSCO gene.
@@ -551,16 +550,26 @@ Using the same method as when we concatenated the `GFF` files used to create `BE
 cat SP01_genome/busco/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.faa > SP01_genome/busco/merged_single_copy_busco_prot.fa
 cat kaki_genome/busco/run_aves_odb10/busco_sequences/single_copy_busco_sequences/*.faa > kaki_genome/busco/merged_single_copy_busco_prot.fa
 ```
-The SIFT documentation suggests using `gffread`, however this is deprecated and unmaintained. We opted to convert the `GFF` files output from BUSCO to `GTF` with [agat](https://github.com/NBISweden/AGAT) v. 1.4.0.  
+The SIFT documentation suggests using `gffread`, however this is deprecated and unmaintained. We opted to convert the `GFF` files output from BUSCO to `GTF` with [agat](https://github.com/NBISweden/AGAT) v. 1.4.0. First we fixed the concatenated `GFF` from BUSCO to be more compatible with SIFT and VEP.  
 ```
-agat_convert_sp_gff2gtf.pl --gff SP01_genome/busco/merged_single_copy_busco.gff -o SP01_genome/busco/merged_single_copy_busco.gtf
-agat_convert_sp_gff2gtf.pl --gff kaki_genome/busco/merged_single_copy_busco.gff -o kaki_genome/busco/merged_single_copy_busco.gtf
+agat_sp_manage_IDs.pl --gff references/kaki_merged_single_copy_busco.gff -o references/kaki_BUSCO_check.gff
+agat_sp_manage_IDs.pl --gff references/SP01_single_copy_BUSCO.gff -o references/SP01_BUSCO_check.gff
+```
+Then sorted and compressed `GFF`.  
+```
+cat references/kaki_BUSCO_check.gff | sort -k1,1 -k4,4n -k5,5n -t$'\t' | bgzip -c > references/kaki_BUSCO_check.gff.gz
+cat references/SP01_BUSCO_check.gff | sort -k1,1 -k4,4n -k5,5n -t$'\t' | bgzip -c > references/SP01_BUSCO_check.gff.gz
+```
+This `GFF` was then converted to `GTF` with AGAT and compressed for SIFT.  
+```
+agat_convert_sp_gff2gtf.pl --gff SP01_genome/busco/SP01_BUSCO_check.gff -o SP01_genome/busco/SP01_scBUSCO.gtf
+agat_convert_sp_gff2gtf.pl --gff kaki_genome/busco/kaki_BUSCO_check.gff -o kaki_genome/busco/kaki_scBUSCO.gtf
 
-bgzip SP01_genome/busco/merged_single_copy_busco.gtf
-cp SP01_genome/busco/merged_single_copy_busco.gtf.gz fairy_SIFT_databases/gene-annotation-src/
+bgzip SP01_genome/busco/SP01_scBUSCO.gtf
+cp SP01_genome/busco/SP01_scBUSCO.gtf.gz fairy_SIFT_databases/gene-annotation-src/
 
-bgzip kaki_genome/busco/merged_single_copy_busco.gtf
-cp kaki_genome/busco/merged_single_copy_busco.gtf.gz kaki_SIFT_databases/gene-annotation-src/
+bgzip kaki_genome/busco/kaki_scBUSCO.gtf
+cp kaki_genome/busco/kaki_scBUSCO.gtf.gz kaki_SIFT_databases/gene-annotation-src/
 ```
 The tara iti reference genome had each scaffold represented on a single line. This is incompatible with the notation for SIFT programmes. To address this, we used the Unix command `fold` to reduce line widths to 60 characters.  
 ```
@@ -623,26 +632,23 @@ sudo docker run -it --user $(id -u):$(id -g) -v /home/jana/:/home/jana/ sift4g_d
 perl make-SIF-db-all.pl -c fairy_terns.txt
 exit
 ```
+And finally we annotated the filtered VCF file using our SIFT database.  
+```
+java -jar /home/jana/SIFT_Annotator.jar -c -i ${DIR}GLOBAL_polarized_filtered.vcf \
+    -d fairy_SIFT_databases/SP01_v1/ \
+    -r SIFT/fairy_output -t
+```
+
 ### Variant Effect Predictor
-First attempted to fix `GFF` to be more compatible with VEP.  
+VEP was run below using the GFF file constructed above.  
 ```
-agat_sp_manage_IDs.pl --gff references/kaki_merged_single_copy_busco.gff -o references/kaki_BUSCO_check.gff
-agat_sp_manage_IDs.pl --gff references/SP01_single_copy_BUSCO.gff -o references/SP01_BUSCO_check.gff
-```
-Then sorted and compressed `GFF`.  
-```
-cat references/kaki_BUSCO_check.gff | sort -k1,1 -k4,4n -k5,5n -t$'\t' | bgzip -c > references/kaki_BUSCO_check.gff.gz
-cat references/SP01_BUSCO_check.gff | sort -k1,1 -k4,4n -k5,5n -t$'\t' | bgzip -c > references/SP01_BUSCO_check.gff.gz
-```
-Then ran VEP.  
-```
-vep -i GLOBAL_whole-genome_polarized.vcf \
+perl vep -i GLOBAL_whole-genome_polarized.vcf \
     --custom references/SP01_BUSCO_check.gff.gz,FAIRY_GFF,gff \
     --fasta references/SP01_5kb_ragtag_fold60.fa.gz \
     --everything \
     -o vep_data/angsd_high_confidence_BUSCO_SNPs/GLOBAL_whole-genome_polarized
 
-vep -i KI_whole-genome_polarized.vcf \
+perl vep -i KI_whole-genome_polarized.vcf \
     --custom references/kaki_BUSCO_check.gff.gz,KAKI_GFF,gff \
     --fasta references/him_Nova-hic-scaff.fa \
     --everything \
@@ -651,17 +657,21 @@ vep -i KI_whole-genome_polarized.vcf \
 ### Intersecting calls between VEP & SIFT
 To find sites that both had an impact (VEP) and were deleterious (SIFT), we first filtered the SIFT output for those sites with a SIFT score <= 0.05.
 ```
-awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' GLOBAL_whole-genome_SIFTannotations.txt | awk '{ if ($6 <= 0.05) print $0}' > deleterious_SIFT_fairy.tsv
-awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' GLOBAL_whole-genome_SIFTannotations.txt | awk '{ if ($6 > 0.05) print $0}' > tolerant_SIFT_fairy.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' GLOBAL_whole-genome_SIFTannotations.txt | awk '{ if (($5 != "NA" && $6 <= 0.05 && $7 >= 2.75) || ($6 != "NA" && $6 <=0.05 && $7 >= 3.5)) print $0}' > deleterious_SIFT_fairy.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' GLOBAL_whole-genome_SIFTannotations.txt | awk '{ if (($5 != "NA" && $6 > 0.05 && $7 >= 2.75) || ($6 !="NA" && $6 > 0.05 && $7 <= 3.5) print $0}' > tolerant_SIFT_fairy.tsv
 
-awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' kaki_whole-genome_SIFTannotations.txt | awk '{ if ($6 <= 0.05) print $0}' > deleterious_SIFT_kaki.tsv
-awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' kaki_whole-genome_SIFTannotations.txt | awk '{ if ($6 > 0.05) print $0}' > tolerant_SIFT_kaki.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' kaki_whole-genome_SIFTannotations.txt | awk '{ if (($5 != "NA" && $6 <= 0.05 && $7 >= 2.75) || ($5 != "NA" && $6 <=0.05 && $7 >= 3.5)) print $0}' > deleterious_SIFT_kaki.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' kaki_whole-genome_SIFTannotations.txt | awk '{ if (($5 != "NA" && $6 > 0.05 && $7 >= 2.75) || ($5 !="NA" && $6 > 0.05 && $7 <= 3.5) print $0}' > tolerant_SIFT_kaki.tsv
+
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' KI_10x_whole-genome_polarized_filtered_SIFTannotations.txt | awk '{ if (($5 != "NA" && $6 <= 0.05 && $7 >= 2.75) || ($5 != "NA" && $6 <=0.05 && $7 >= 3.5)) print $0}' > deleterious_SIFT_KI_10x.tsv
+awk '{print $1"\t"$2"\t"$(NF-4)"\t"$(NF-3)"\t"$(NF-2)"\t"$(NF-1)"\t"$NF}' KI_10x_whole-genome_polarized_filtered_SIFTannotations.txt | awk '{ if (($5 != "NA" && $6 > 0.05 && $7 >= 2.75) || ($5 !="NA" && $6 > 0.05 && $7 <= 3.5) print $0}' > tolerant_SIFT_KI_10x.tsv
 ```
 SIFT sites were then extracted, and used to determine impact from VEP.
 ```
 
 grep -v "#" GLOBAL_whole-genome.tsv | grep -v IMPACT=MODIFIER > VEP_impacts_fairy.tsv
 grep -v "#" KI_whole-genome.tsv | grep -v IMPACT=MODIFIER > VEP_impacts_kaki.tsv
+grep -v "#" KI_10x_whole-genome.tsv | grep -v IMPACT=MODIFIER > VEP_impacts_KI_10x.tsv
 
 for POP in fairy kaki
     do
