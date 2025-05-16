@@ -149,3 +149,7 @@ ragtag.py scaffold -o reference/SP01_ragtag/ reference/common_tern.fasta referen
 |:-----------:|:----------------:|:---------------:|:-----------:|:---------:|:---:|:---------------------------:|:-----------------:|
 |   Q20, 5kb  |       97.7       |       1.9       |     137     |    84.9   |  5  |            219.3            |       18.7        |
 
+# Using SeqKit Properly
+```
+seqkit grep -p  "^[^]/|/(\D )(\w+) " -f autosome_names.txt ${REF} > ${OUT_REF}
+```

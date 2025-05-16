@@ -95,7 +95,7 @@ for BAM in ${DIR}*_merged.bam
     date
 done
 ```
-Once BAMs were processed, autosomal chromosomes were extracted for population analyses. Mean mapping quality and alignment depth was then estimated using [QualiMap](http://qualimap.conesalab.org/) v2.3.  
+Once BAMs were processed, autosomal chromosomes were extracted for population analyses. Mean mapping quality and alignment depth was then estimated using SAMtols, [mosdepth](https://github.com/brentp/mosdepth), and [QualiMap](http://qualimap.conesalab.org/) v2.3.  
 ```
 cut -f1,2 SP01_5kb_ragtag.fa.fai | grep "CM020" | grep -v CM020462.1_RagTag | grep -v CM020463.1_RagTag | awk '{print $1"\t1\t"$2} > SP01_autosomes.bed
 
