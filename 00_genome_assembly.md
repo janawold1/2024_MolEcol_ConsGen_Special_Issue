@@ -148,4 +148,3 @@ ragtag.py scaffold -o reference/SP01_ragtag/ reference/common_tern.fasta referen
 | Read Inputs | % Complete BUSCO | % Missing BUSCO | # Scaffolds | N50 (Mbp) | L50 | Largest Scaffold Size (Mbp) | # N's per 100 kbp |
 |:-----------:|:----------------:|:---------------:|:-----------:|:---------:|:---:|:---------------------------:|:-----------------:|
 |   Q20, 5kb  |       97.7       |       1.9       |     137     |    84.9   |  5  |            219.3            |       18.7        |
-
