@@ -33,7 +33,7 @@ Courtesy of scripts provided by [@mfumagalli](https://github.com/mfumagalli/ngsT
 
 |        Population        |Minimum MapQ|Minimum Q|Minimum Depth|Maximum Depth|Number of Individuals|
 | ------------------------ | ---------- | ------- | ----------- | ----------- | ------------------- |
-|Australian Fairy Tern (WA)|     20     |    20   |     200     |     420     |         19          |
+|Australian Fairy Tern (WA)|     20     |    20   |     200     |     350     |         19          |
 |         Tara iti         |     20     |    20   |     120     |     280     |         15          |
 |     Global fairy tern    |     20     |    20   |     272     |     630     |         34          |
 |         Kakī 10x         |     20     |    20   |     192     |     300     |         24          |
@@ -41,27 +41,22 @@ Courtesy of scripts provided by [@mfumagalli](https://github.com/mfumagalli/ngsT
 
  Below is code run for analyses performed on alignments of fairy terns to the tara iti reference scaffolded using the common tern assembly (see [00_genome_assembly.md](https://github.com/janawold1/2024_MolEcol_ConsGen_Special_Issue/blob/main/00_genome_assembly.md)) and alignments of kakī to the high-quality reference assembly for this species (see [here](https://www.genomics-aotearoa.org.nz/our-work/completed-projects/high-quality-genomes) for details). All analyses for each group were performed in a similar manner for downstream comparisons. Quality thresholds were adjusted as per the table above.  
 
+In addition, scaffolds that adhered to expected population sequence coverage (e.g., ~10x) and likely represented autosomal chromosomes were extracted from the reference fasta and individual BAM alignments before identifying putative coding regions as per below.  
+
 ## Excluding putative coding Regions
 Neither the tara iti or kakī reference assemblies have transcriptomes. To assess the potential consequences of the inclusion of regions under selection, and to have a 'first look' at the genomic diversity around coding regions, we performed *ab initio* gene prediction using [AUGUSTUS](https://github.com/Gaius-Augustus/Augustus/tree/master) v3.5.0.  
 ```
-augustus --sample=100 --alternatives=false --temperature=3 \
-    --species=chicken reference/SP01_ragtag.fa > reference/SP01_AUGUSTUS.gff
-augustus --sample=100 --alternatives=false --temperature=3 \
-    --species=chicken reference/himNova-hic-scaff.fa > reference/kaki_AUGUSTUS.gff
-```
-Scaffolds that adhered to expected population sequence coverage (e.g., ~10x) and likely represented autosomal chromosomes were extracted from these predictions. [BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.30.0 was then used to sort, and merge these putative gene regions. An additional 1kb of sequence on either side of annotations were included to reduce linkage.  
+augustus --sample=100 --alternatives-from-sampling=true --strand=both \
+        --gff3=yes --progress=true --temperature=3 --species=chicken \
+        --protein=on $TREF > ${DIR}augustus/TI_AUGUSTUS.gff
 
-First, the annotations for sex chromosomes, unplaced scaffolds, or those that consistently did not adhere to expected sequencing depths were excluded as they likely represented misassemblies. Duplicate regions were then merged with `bedtools merge`.  
+augustus --sample=100 --alternatives-from-sampling=true --strand=both \
+        --gff3=yes --progress=true --temperature=3 --species=chicken \
+        --protein=on $KREF > ${DIR}augustus/kaki_AUGUSTUS.gff
+```
+[BEDtools](https://bedtools.readthedocs.io/en/latest/content/tools/complement.html?highlight=complement) v2.30.0 was then used to sort, and merge these putative gene regions. An additional 1kb of sequence on either side of annotations were included to reduce linkage. Duplicate regions were then merged with `bedtools merge`.  
 ```
 grep -v "#" reference/gene_predictions/SP01_AUGUSTUS.gff | \
-    grep -v WNMW0 | \
-    grep -v CM020459 | \
-    grep -v CM020460 | \
-    grep -v CM020461 | \
-    grep -v CM020462 | \
-    grep -v CM020463 | \
-    grep -v contig_ | \
-    grep -v ntLink_ | \
     bedtools sort -i - > angsd/augustus_autosomal_predictions.bed
 
 bedtools merge -i angsd/augustus_autosomal_predictions.bed > angsd/augustus_autosomal_predictions_merged.bed
@@ -77,15 +72,7 @@ awk '{print $1"\t"$2-1000"\t"$3+1000}' angsd/kaki_augustus_predictions_merged.be
 ```
 To define putatively neutral sites for analyses, we extracted the complement regions as below.  
 ```
-awk -v OFS='\t' {'print $1,$2'} reference/SP01_5kb_ragtag.fa.fai | \
-    grep -v WNMW0 | \
-    grep -v CM020459 | \
-    grep -v CM020460 | \
-    grep -v CM020461 | \
-    grep -v CM020462 | \
-    grep -v CM020463 | \
-    grep -v contig_ | \
-    grep -v ntLink_ > reference/SP01_autosome_lengths.txt
+awk -v OFS='\t' {'print $1,$2'} ${TREF}$.fai > reference/SP01_autosome_lengths.txt
 
 bedtools complement \
     -i angsd/augustus_autosomal_predictions_merged_add1kb.bed \
@@ -114,7 +101,7 @@ for POP in AU TI
         angsd -P 24 -b ${ANGSD}${POP}.list -ref $TREF -out ${ANGSD}samtools/genotypes/${POP}_genotypes \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 19 -setMinDepth 200 -setMaxDepth 420 -doCounts 1 \
-            -doPost 1 -doBcf 1 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 10 --ignore-RG 0
+            -doPost 1 -doBcf 1 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 10 --ignore-RG 0
         vcftools --bcf ${ANGSD}samtools/genotypes/${POP}_genotypes.bcf \
             --TsTv-summary --out ${ANGSD}samtools/genotypes/${POP}_genotypes
         elif [[ "$POP" == "TI" ]]
@@ -122,7 +109,7 @@ for POP in AU TI
         angsd -P 24 -b ${ANGSD}${POP}.list -ref $TREF -out ${ANGSD}samtools/genotypes/${POP}_genotypes \
             -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
             -minMapQ 20 -minQ 20 -minInd 15 -setMinDepth 120 -setMaxDepth 280 -doCounts 1 \
-            -doPost 1 -doBcf 1 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-3 -doGeno 10 --ignore-RG 0
+            -doPost 1 -doBcf 1 -GL 1 -doMajorMinor 1 -doMaf 1 -skipTriallelic 1 -SNP_pval 1e-6 -doGeno 10 --ignore-RG 0
         vcftools --bcf ${ANGSD}samtools/genotypes/${POP}_genotypes.bcf \
             --TsTv-summary --out ${ANGSD}samtools/genotypes/${POP}_genotypes
         else
@@ -218,18 +205,15 @@ done
 ### Individual Heterozygosity
 Here, we implemented a global (genome-wide heterozygosity) method from ANGSD. Essentially, this estimate is a proportion of heterozygous genotypes / genome size (excluding regions of the genome with low confidence). Unlike other runs of ANGSD, individual BAMs are used to estimate hetereozygosity, which is simply second value in the SFS/AFS.  
 ```
-for SAMP in ${BAM}*_markdup_autosomes.bam
-    do
-    BASE=$(basename $SAMP _markdup_autosomes.bam)
-    angsd -i $SAMP -anc $ANC -ref $REF -out ${ANGSD}samtools/heterozygosity/${BASE} \
-        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-        -minMapQ 20 -minQ 20 -dosaf 1 -GL 1 -doCounts 1
-    angsd -i $SAMP -anc $ANC -ref $REF -sites ${SITES} -out ${ANGSD}neutral/heterozygosity/${BASE} \
-        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -baq 1 \
-        -minMapQ 20 -minQ 20 -dosaf 1 -GL 1 -doCounts 1-dosaf 1 -GL 1 -doCounts 1
-    realSFS ${ANGSD}samtools/heterozygosity/${BASE}.saf.idx > ${ANGSD}samtools/heterozygosity/${BASE}_est.ml
-    realSFS ${ANGSD}neutral/heterozygosity/${BASE}.saf.idx > ${ANGSD}neutral/heterozygosity/${BASE}_est.ml
-done
+SAMP=$(sed -n "$((SLURM_ARRAY_TASK_ID + 1))p" /nesi/nobackup/uc03718/angsd/GLOBAL.list)
+NAME=$(basename $SAMP _autosomes_nodup.bam)
+
+printf "\nSTARTED RUNNING ANGSD TO ESTIMATE HETEROZYGOSITY FOR $NAME AT "
+date
+
+angsd -P 32 -i ${SAMP} -ref $TREF -out ${DIR}samtools/heterozygosity/${NAME} \
+        -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -angbaq 1 \
+        -minMapQ 20 -minQ 20 -doCounts 1 -dosaf 1 -GL 1 -skipTriallelic 1
 ```
 Once the SFS was estimated for each individual, the number of sites was estimated from the sum of all scaffold sizes included in the bam file and output to a file.
 ```
