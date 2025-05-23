@@ -213,7 +213,9 @@ date
 
 angsd -P 32 -i ${SAMP} -ref $TREF -out ${DIR}samtools/heterozygosity/${NAME} \
         -uniqueOnly 1 -remove_bads 1 -only_proper_pairs 1 -trim 0 -C 50 -angbaq 1 \
-        -minMapQ 20 -minQ 20 -doCounts 1 -dosaf 1 -GL 1 -skipTriallelic 1
+        -minMapQ 20 -minQ 20 -doCounts 1 -dosaf 1 -GL 1
+
+realSFS ${DIR}samtools/heterozygosity/${NAME}.saf.ids > ${DIR}samtools/heterozygosity/${NAME}_est.ml
 ```
 Once the SFS was estimated for each individual, the number of sites was estimated from the sum of all scaffold sizes included in the bam file and output to a file.
 ```
